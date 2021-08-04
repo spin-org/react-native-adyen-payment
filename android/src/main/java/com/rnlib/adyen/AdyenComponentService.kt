@@ -1,13 +1,8 @@
 package com.rnlib.adyen
 
-import com.adyen.checkout.base.model.payments.Amount
 import com.adyen.checkout.core.log.LogUtil
 import com.adyen.checkout.core.log.Logger
-import com.adyen.checkout.core.model.JsonUtils
-import com.rnlib.adyen.service.CallResult
-import com.rnlib.adyen.service.ComponentService
 import com.adyen.checkout.redirect.RedirectComponent
-import com.google.gson.Gson
 import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -17,24 +12,14 @@ import retrofit2.Call
 import java.io.IOException
 import android.util.Log
 
-import com.jakewharton.retrofit2.adapter.kotlin.coroutines.CoroutineCallAdapterFactory
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import okhttp3.RequestBody
-import retrofit2.Retrofit
-import com.rnlib.adyen.CheckoutApiService
-import com.rnlib.adyen.ApiService
-import com.rnlib.adyen.PaymentData
-import com.rnlib.adyen.AdditionalData
-import com.rnlib.adyen.AppServiceConfigData
-import com.rnlib.adyen.AdyenPaymentModule
-import java.net.URL
+import com.rnlib.adyen.service.AdyenDropInService
+import com.rnlib.adyen.service.AdyenDropInServiceResult
 
 /**
  * This is just an example on how to make networkModule calls on the [DropInService].
  * You should make the calls to your own servers and have additional data or processing if necessary.
  */
-class AdyenComponentService : ComponentService() {
+class AdyenComponentService : AdyenDropInService() {
 
     companion object {
         private val TAG = LogUtil.getTag()
@@ -52,7 +37,7 @@ class AdyenComponentService : ComponentService() {
             .create(CheckoutApiService::class.java)
     }*/
 
-    override fun makePaymentsCall(paymentComponentData: JSONObject): CallResult {
+    override fun makePaymentsCall(paymentComponentData: JSONObject): AdyenDropInServiceResult {
         Log.i(TAG, "makePaymentsCall")
         // Check out the documentation of this method on the parent DropInService class
         /*
@@ -72,32 +57,29 @@ class AdyenComponentService : ComponentService() {
                         executeThreeD : false
                 }
         */
-        
+
         val configData : AppServiceConfigData = AdyenPaymentModule.getAppServiceConfigData();
         val paymentRequest : JSONObject = AdyenPaymentModule.getPaymentData();
         val amount = paymentRequest.getJSONObject("amount")
         paymentRequest.putOpt("payment_method", paymentComponentData.getJSONObject("paymentMethod"))
-        paymentRequest.put("region_id", paymentRequest.getInt("regionId"))
         paymentRequest.put("return_url", RedirectComponent.getReturnUrl(applicationContext))
         paymentRequest.put("amount", amount.getInt("value"))
-        Log.i(TAG, "paymentComponentData - ${JsonUtils.indent(paymentComponentData)}")
 
         val requestBody = paymentRequest.toString().toRequestBody(CONTENT_TYPE)
-        var call = ApiService.checkoutApi(configData.base_url).addCards(configData.app_url_headers,requestBody)
+        var call = ApiService.checkoutApi(configData.baseUrl).addCards(configData.appUrlHeaders,requestBody)
         when (paymentRequest.getString("reference")) {
-            "api/v1/adyen/trip_payments" -> call = ApiService.checkoutApi(configData.base_url).tripPayments(configData.app_url_headers,requestBody)
-            "api/v1/adyen/user_credit_payments" -> call = ApiService.checkoutApi(configData.base_url).userCredit(configData.app_url_headers,requestBody)
+            "api/v1/adyen/trip_payments" -> call = ApiService.checkoutApi(configData.baseUrl).tripPayments(configData.appUrlHeaders,requestBody)
+            "api/v1/adyen/user_credit_payments" -> call = ApiService.checkoutApi(configData.baseUrl).userCredit(configData.appUrlHeaders,requestBody)
         }
         return handleResponse(call)
     }
 
-    override fun makeDetailsCall(actionComponentData: JSONObject): CallResult {
+    override fun makeDetailsCall(actionComponentData: JSONObject): AdyenDropInServiceResult {
         Log.d(TAG, "makeDetailsCall")
 
-        Log.i(TAG, "payments/details/ - ${JsonUtils.indent(actionComponentData)}")
         val configData : AppServiceConfigData = AdyenPaymentModule.getAppServiceConfigData();
         val requestBody = actionComponentData.toString().toRequestBody(CONTENT_TYPE)
-        val call = ApiService.checkoutApi(configData.base_url).details(configData.app_url_headers,requestBody)
+        val call = ApiService.checkoutApi(configData.baseUrl).details(configData.appUrlHeaders,requestBody)
 
         return handleResponse(call)
     }
@@ -118,7 +100,7 @@ class AdyenComponentService : ComponentService() {
     }
 
     @Suppress("NestedBlockDepth")
-    private fun handleResponse(call: Call<ResponseBody>): CallResult {
+    private fun handleResponse(call: Call<ResponseBody>): AdyenDropInServiceResult {
         return try {
             val response = call.execute()
 
@@ -130,57 +112,43 @@ class AdyenComponentService : ComponentService() {
                     val detailsErrResponse = JSONObject(String(byteArray))
                     if(detailsErrResponse.has("errorCode") && detailsErrResponse.has("errorMessage")){
                         val errType = detailsErrResponse.getString("type")
-                        val errCode = detailsErrResponse.getString("errorCode") 
+                        val errCode = detailsErrResponse.getString("errorCode")
                         val errMessage = detailsErrResponse.getString("errorMessage")
                         val appendedErrMsg = if(errType=="validation") errMessage else (errCode + " : " + errMessage)
                         val resultType = if(errType=="validation") "ERROR_VALIDATION" else "ERROR"
                         val errObj : JSONObject = JSONObject()
                         errObj.put("resultType",resultType)
                         errObj.put("code","ERROR_PAYMENT_DETAILS")
-                        errObj.put("message",appendedErrMsg)
-                        CallResult(CallResult.ResultType.FINISHED, errObj.toString())
-                    }else{
-                        val errObj : JSONObject = JSONObject()
-                        errObj.put("resultType","ERROR")
-                        errObj.put("code","ERROR_GENERAL")
-                        errObj.put("message",String(byteArray))
-                        CallResult(CallResult.ResultType.FINISHED, errObj.toString())
+                        errObj.put("message", appendedErrMsg)
+                        AdyenDropInServiceResult.Finished(errObj.toString())
+                    } else {
+                        val errObj: JSONObject = JSONObject()
+                        errObj.put("resultType", "ERROR")
+                        errObj.put("code", "ERROR_GENERAL")
+                        errObj.put("message", String(byteArray))
+                        AdyenDropInServiceResult.Finished(errObj.toString())
                     }
-                }else{
-                        val errObj : JSONObject = JSONObject()
-                        errObj.put("resultType","ERROR")
-                        errObj.put("code","ERROR_GENERAL")
-                        errObj.put("message",String(byteArray))
-                        CallResult(CallResult.ResultType.FINISHED, errObj.toString())
+                } else {
+                    val errObj: JSONObject = JSONObject()
+                    errObj.put("resultType", "ERROR")
+                    errObj.put("code", "ERROR_GENERAL")
+                    errObj.put("message", String(byteArray))
+                    AdyenDropInServiceResult.Finished(errObj.toString())
                 }
-                
+
             }else{
 
                 val detailsResponse = JSONObject(response.body()?.string())
 
                 if (response.isSuccessful) {
                     if (detailsResponse.has("action")) {
-                        CallResult(CallResult.ResultType.ACTION, detailsResponse.get("action").toString())
+                        AdyenDropInServiceResult.Action(detailsResponse.get("action").toString())
                     } else {
-                        Logger.d(TAG, "Final result - ${JsonUtils.indent(detailsResponse)}")
+
                         val successObj : JSONObject = JSONObject()
                         successObj.put("resultType","SUCCESS")
                         successObj.put("message",detailsResponse)
-                        CallResult(CallResult.ResultType.FINISHED, successObj.toString())
-                        /*
-                        var resultCode = ""
-                        if (detailsResponse.has("resultCode")) {
-                            resultCode = detailsResponse.get("resultCode").toString()
-                            if(resultCode == "Authorised" || resultCode == "Received" || resultCode == "PENDING"){
-                                CallResult(CallResult.ResultType.FINISHED, detailsResponse.toString())
-                            }else if(resultCode == "Refused" || resultCode == "Cancelled" || resultCode == "Error"){
-                                CallResult(CallResult.ResultType.ERROR, "Transaction Refused/Cancelled/Error")
-                            }else{
-                                CallResult(CallResult.ResultType.ERROR, detailsResponse.toString())
-                            }
-                        }else{
-                            CallResult(CallResult.ResultType.FINISHED, detailsResponse.toString())
-                        }*/
+                        AdyenDropInServiceResult.Finished(successObj.toString())
                     }
                 } else {
                     Logger.e(TAG, "FAILED - ${response.message()}")
@@ -189,7 +157,7 @@ class AdyenComponentService : ComponentService() {
                     errObj.put("resultType","ERROR")
                     errObj.put("code","ERROR_GENERAL")
                     errObj.put("message",response.message().toString())
-                    CallResult(CallResult.ResultType.FINISHED, errObj.toString())
+                    AdyenDropInServiceResult.Finished(errObj.toString())
                 }
             }
         } catch (e: IOException) {
@@ -199,7 +167,7 @@ class AdyenComponentService : ComponentService() {
             errObj.put("resultType","ERROR")
             errObj.put("code","ERROR_IOEXCEPTION")
             errObj.put("message","Unable to Connect to the Server")
-            CallResult(CallResult.ResultType.FINISHED, errObj.toString())
+            AdyenDropInServiceResult.Finished(errObj.toString())
         }
     }
 }

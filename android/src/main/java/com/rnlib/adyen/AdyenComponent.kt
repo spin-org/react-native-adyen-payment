@@ -8,103 +8,225 @@
 
 package com.rnlib.adyen
 
+import com.adyen.checkout.dropin.DropInResult
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import com.adyen.checkout.base.model.PaymentMethodsApiResponse
-import com.adyen.checkout.base.model.paymentmethods.PaymentMethod
-import com.adyen.checkout.base.util.PaymentMethodTypes
-import com.adyen.checkout.card.CardConfiguration
-import com.adyen.checkout.card.data.CardType
+import androidx.fragment.app.Fragment
+import com.adyen.checkout.components.model.PaymentMethodsApiResponse
 import com.adyen.checkout.core.log.LogUtil
 import com.adyen.checkout.core.log.Logger
-
-import com.rnlib.adyen.AdyenComponent.Companion.startPayment
+import com.adyen.checkout.dropin.DropIn.startPayment
+import com.adyen.checkout.dropin.service.DropInService
+import com.adyen.checkout.dropin.service.DropInServiceResult
 import com.rnlib.adyen.ui.AdyenComponentActivity
 
 /**
- * Drop-in is the easy solution to using components. The Merchant only needs to provide the response of the paymentMethods/ endpoint
- * and some configuration data. Then we will handle the UI flow to get all the needed payment information.
+ * Drop-in is our pre-built checkout UI for accepting payments. You only need to provide
+ * the /paymentMethods response and some configuration data - Drop-in will handle the rest of the
+ * payment flow.
  *
- * Merchant needs to extend [DropInService] and put it in the manifest. That service is where the merchant will make the calls to the
- * server for the payments/ and payments/details/ endpoints/.
- *
- * After setting up the [DropInService], just call [startPayment] and the checkout process will start.
+ * To start the payment flow, first extend the [DropInService] class, and add it to your manifest
+ * file. Then call [startPayment].
  */
-@Suppress("SyntheticAccessor")
-class AdyenComponent private constructor() {
+object AdyenComponent {
+    private val TAG = LogUtil.getTag()
 
-    companion object {
-        private val TAG = LogUtil.getTag()
+    const val DROP_IN_REQUEST_CODE = 529
 
-        const val RESULT_KEY = "payment_result"
+    const val RESULT_KEY = "payment_result"
+    const val ERROR_REASON_KEY = "error_reason"
+    const val ERROR_REASON_USER_CANCELED = "Canceled by user"
 
-        const val RESULT_CANCEL_KEY = "payment_cancel"
+    internal const val DROP_IN_PREFS = "drop-in-shared-prefs"
+    internal const val LOCALE_PREF = "drop-in-locale"
 
-        const val DROP_IN_PREFS = "drop-in-shared-prefs"
-        const val LOCALE_PREF = "drop-in-locale"
+    /**
+     * Starts the checkout flow to be handled by the Drop-in solution.
+     * Make sure you have [DropInService] set up before calling this.
+     * You can pass a [resultHandlerIntent] that will be launched after the Drop-in has completed
+     * without any errors.
+     * We suggest that you set up the [resultHandlerIntent] with the appropriate flags to clear
+     * the stack of the checkout activities.
+     *
+     * 3 states can occur from this operation:
+     * - Cancelled by user: the user dismissed the Drop-in before it has completed.
+     * - Error: a [DropInServiceResult.Error] was returned in the [DropInService], or an error
+     * has occurred.
+     * - Finished: a [DropInServiceResult.Finished] was returned in the [DropInService].
+     *
+     * You should always handle the cases of cancellation and error in [Activity.onActivityResult]
+     * (request code [DROP_IN_REQUEST_CODE]).
+     * You can make use of the [handleActivityResult] helper method to get a [DropInResult] object.
+     * If you prefer to handle the activity result manually, you should expect an
+     * [Activity.RESULT_CANCELED] result code (for both error and cancellation). The data
+     * intent will contain the error reason extra with key [ERROR_REASON_KEY]. Its value will be
+     * [ERROR_REASON_USER_CANCELED] in case of user cancellation or the error reason otherwise.
+     *
+     * As for the Drop-in finished case, if you did not specify a [resultHandlerIntent], you will
+     * also receive the result in [Activity.onActivityResult]. You can make use of the
+     * [handleActivityResult] helper method. If you prefer to handle the activity result
+     * manually, you should expect an [Activity.RESULT_OK] result code. The data intent will
+     * contain the result string extra with key [RESULT_KEY] and will hold the same value as the
+     * [DropInServiceResult.Finished.result] returned inside the [DropInService].
+     *
+     * However, if you do specify a [resultHandlerIntent], [Activity.onActivityResult] will not
+     * receive the result. Instead, that [resultHandlerIntent] will be launched when the
+     * payment is finished and will contain the result. You can use the
+     * [getDropInResultFromIntent] helper method to get it or you can find it in the intent
+     * extras with key [RESULT_KEY].
+     *
+     * @param activity An activity to start the Checkout flow.
+     * @param paymentMethodsApiResponse The result from the paymentMethods/ endpoint.
+     * @param dropInConfiguration Additional required configuration data.
+     * @param resultHandlerIntent Intent to be called after Drop-in has finished.
+     *
+     */
+    @JvmStatic
+    fun startPayment(
+        activity: Activity,
+        paymentMethodsApiResponse: PaymentMethodsApiResponse,
+        adyenComponentConfiguration: AdyenComponentConfiguration,
+        resultHandlerIntent: Intent? = null
+    ) {
+        Logger.d(TAG, "startPayment from Activity")
 
-        @JvmStatic
-        @Deprecated("You can use `DropIn.startPayment instead`")
-        val INSTANCE: AdyenComponent by lazy { AdyenComponent() }
+        val intent = preparePayment(
+            activity,
+            paymentMethodsApiResponse,
+            adyenComponentConfiguration,
+            resultHandlerIntent
+        )
+        activity.startActivityForResult(intent, DROP_IN_REQUEST_CODE)
+    }
 
-        /**
-         * Starts the checkout flow to be handled by the Drop-In solution. Make sure you have [DropInService] set up before calling this.
-         * We suggest that you set up the resultHandlerIntent with the appropriate flags to clear the stack of the checkout activities.
-         *
-         * @param context A context to start the Checkout flow.
-         * @param paymentMethodsApiResponse The result from the paymentMethods/ endpoint.
-         * @param dropInConfiguration Additional required configuration data.
-         *
-         */
-        @JvmStatic
-        fun startPayment(
-            context: Context,
-            paymentMethodsApiResponse: PaymentMethodsApiResponse,
-            adyenComponentConfiguration: AdyenComponentConfiguration
-        ) {
+    /**
+     * Starts the checkout flow to be handled by the Drop-in solution.
+     * Make sure you have [DropInService] set up before calling this.
+     * You can pass a [resultHandlerIntent] that will be launched after the Drop-in has completed
+     * without any errors.
+     * We suggest that you set up the [resultHandlerIntent] with the appropriate flags to clear
+     * the stack of the checkout activities.
+     *
+     * 3 states can occur from this operation:
+     * - Cancelled by user: the user dismissed the Drop-in before it has completed.
+     * - Error: a [DropInServiceResult.Error] was returned in the [DropInService], or an error
+     * has occurred.
+     * - Finished: a [DropInServiceResult.Finished] was returned in the [DropInService].
+     *
+     * You should always handle the cases of cancellation and error in [Fragment.onActivityResult]
+     * (request code [DROP_IN_REQUEST_CODE]).
+     * You can make use of the [handleActivityResult] helper method to get a [DropInResult] object.
+     * If you prefer to handle the activity result manually, you should expect an
+     * [Activity.RESULT_CANCELED] result code (for both error and cancellation). The data
+     * intent will contain the error reason extra with key [ERROR_REASON_KEY]. Its value will be
+     * [ERROR_REASON_USER_CANCELED] in case of user cancellation or the error reason otherwise.
+     *
+     * As for the Drop-in finished case, if you did not specify a [resultHandlerIntent], you will
+     * also receive the result in [Fragment.onActivityResult]. You can make use of the
+     * [handleActivityResult] helper method. If you prefer to handle the activity result
+     * manually, you should expect an [Activity.RESULT_OK] result code. The data intent will
+     * contain the result string extra with key [RESULT_KEY] and will hold the same value as the
+     * [DropInServiceResult.Finished.result] returned inside the [DropInService].
+     *
+     * However, if you do specify a [resultHandlerIntent], [Fragment.onActivityResult] will not
+     * receive the result. Instead, that [resultHandlerIntent] will be launched when the
+     * payment is finished and will contain the result. You can use the
+     * [getDropInResultFromIntent] helper method to get it or you can find it in the intent
+     * extras with key [RESULT_KEY].
+     *
+     * @param fragment A fragment to start the Checkout flow.
+     * @param paymentMethodsApiResponse The result from the paymentMethods/ endpoint.
+     * @param dropInConfiguration Additional required configuration data.
+     * @param resultHandlerIntent Intent to be called after Drop-in has finished.
+     *
+     */
+    @JvmStatic
+    fun startPayment(
+        fragment: Fragment,
+        paymentMethodsApiResponse: PaymentMethodsApiResponse,
+        adyenComponentConfiguration: AdyenComponentConfiguration,
+        resultHandlerIntent: Intent? = null
+    ) {
+        Logger.d(TAG, "startPayment from Fragment")
 
-            /*for (each in paymentMethodsApiResponse.paymentMethods!!) {
-                if (each.type == PaymentMethodTypes.SCHEME) {
-                    this.handleSupportedCards(adyenComponentConfiguration, each, context)
-                    break
-                }
-            }*/
-            Logger.d(TAG,"AdyenComponentLocale : "+adyenComponentConfiguration.shopperLocale.toString())
-            context.getSharedPreferences(DROP_IN_PREFS, Context.MODE_PRIVATE).edit()
-                    .putString(LOCALE_PREF, adyenComponentConfiguration.shopperLocale.toString())
-                    .apply()
+        val intent = preparePayment(
+            fragment.requireContext(),
+            paymentMethodsApiResponse,
+            adyenComponentConfiguration,
+            resultHandlerIntent
+        )
+        fragment.startActivityForResult(intent, DROP_IN_REQUEST_CODE)
+    }
 
+    private fun preparePayment(
+        context: Context,
+        paymentMethodsApiResponse: PaymentMethodsApiResponse,
+        adyenComponentConfiguration: AdyenComponentConfiguration,
+        resultHandlerIntent: Intent?
+    ): Intent {
+        // Add locale to prefs
+        context.getSharedPreferences(DROP_IN_PREFS, Context.MODE_PRIVATE).edit()
+            .putString(LOCALE_PREF, adyenComponentConfiguration.shopperLocale.toString())
+            .apply()
 
-            val intent = AdyenComponentActivity.createIntent(context, adyenComponentConfiguration, paymentMethodsApiResponse)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }
+        return AdyenComponentActivity.createIntent(
+            context,
+            adyenComponentConfiguration,
+            paymentMethodsApiResponse,
+            resultHandlerIntent
+        )
+    }
 
-        init {
-            Logger.d(TAG, "Init")
-        }
-
-        /**
-         * Try to get supported cards from API response when [CardConfiguration] supported cards are default ones.
-         */
-       /* @Suppress("SpreadOperator")
-        private fun handleSupportedCards(adyenComponentConfiguration: AdyenComponentConfiguration, schemePaymentMethod: PaymentMethod, context: Context) {
-
-            var cardConfiguration = adyenComponentConfiguration.getConfigurationFor<CardConfiguration>(PaymentMethodTypes.SCHEME, context)
-
-            if (cardConfiguration.supportedCardTypes == CardConfiguration.DEFAULT_SUPPORTED_CARDS_LIST) {
-                var supportedCardTypesFromApi = schemePaymentMethod.brands?.mapNotNull { brand -> CardType.getCardTypeByTxVariant(brand) }
-                if (!supportedCardTypesFromApi.isNullOrEmpty()) {
-                    Logger.d(TAG, "Updating supported cards to - $supportedCardTypesFromApi")
-                    val newCardConfiguration = cardConfiguration
-                        .newBuilder()
-                        .setSupportedCardTypes(*supportedCardTypesFromApi.orEmpty().toTypedArray())
-                        .build()
-
-                    adyenComponentConfiguration.availableConfigs[PaymentMethodTypes.SCHEME] = newCardConfiguration
-                }
+    /**
+     * Helper method to transform the activity result into a [DropInResult].
+     *
+     * The returned value could be:
+     * * [DropInResult.CancelledByUser] if the operation was cancelled by the user.
+     * * [DropInResult.Error] if an unexpected error has occurred during Drop-in, the
+     * [DropInResult.Error.reason] field will contain the error detail.
+     * * [DropInResult.Error] if a [DropInServiceResult.Error] was returned to the
+     * [DropInService]. The [DropInResult.Error.reason] field will hold the same value as
+     * [DropInServiceResult.Error.reason].
+     * * [DropInResult.Finished] if a [DropInServiceResult.Finished] was returned to the
+     * [DropInService]. The [DropInResult.Finished.result] field will hold the same value as
+     * [DropInServiceResult.Finished.result].
+     * * [null] if the activity result does not correspond to the Drop-in.
+     *
+     * Note that [DropInResult.Finished] will be returned here only if a result intent was
+     * provided to the [startPayment] method.
+     *
+     * @return the result of the Drop-in.
+     *
+     */
+    @JvmStatic
+    fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): DropInResult? {
+        return when {
+            requestCode != DROP_IN_REQUEST_CODE || data == null -> null
+            resultCode == Activity.RESULT_CANCELED && data.hasExtra(ERROR_REASON_KEY) -> {
+                val reason = data.getStringExtra(ERROR_REASON_KEY) ?: ""
+                if (reason == ERROR_REASON_USER_CANCELED) DropInResult.CancelledByUser()
+                else DropInResult.Error(reason)
             }
-        }*/
+            resultCode == Activity.RESULT_OK && data.hasExtra(RESULT_KEY) -> {
+                DropInResult.Finished(data.getStringExtra(RESULT_KEY) ?: "")
+            }
+            else -> null
+        }
+    }
+
+    /**
+     * Helper method to fetch the Drop-in result string from the result intent provided to
+     * [startPayment].
+     *
+     * Returns the value of [DropInServiceResult.Finished.result] or [null] if the intent does
+     * not correspond to the Drop-in.
+     *
+     * @return the result of a finished Drop-in
+     */
+    @JvmStatic
+    fun getDropInResultFromIntent(intent: Intent): String? {
+        return intent.getStringExtra(RESULT_KEY)
     }
 }

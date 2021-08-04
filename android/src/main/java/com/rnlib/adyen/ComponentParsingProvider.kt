@@ -11,22 +11,41 @@ package com.rnlib.adyen
 import android.app.Application
 import android.content.Context
 import androidx.fragment.app.Fragment
-import com.adyen.checkout.base.ComponentAvailableCallback
-import com.adyen.checkout.base.ComponentView
-import com.adyen.checkout.base.PaymentComponent
-import com.adyen.checkout.base.PaymentComponentProvider
-import com.adyen.checkout.base.PaymentComponentState
-import com.adyen.checkout.base.component.BaseConfigurationBuilder
-import com.adyen.checkout.base.component.Configuration
-import com.adyen.checkout.base.model.paymentmethods.PaymentMethod
-import com.adyen.checkout.base.model.payments.request.PaymentMethodDetails
-import com.adyen.checkout.base.util.PaymentMethodTypes
+import androidx.fragment.app.FragmentActivity
+import com.adyen.checkout.adyen3ds2.Adyen3DS2Component
+import com.adyen.checkout.adyen3ds2.Adyen3DS2Configuration
+import com.adyen.checkout.await.AwaitComponent
+import com.adyen.checkout.await.AwaitConfiguration
+import com.adyen.checkout.await.AwaitView
 import com.adyen.checkout.bcmc.BcmcComponent
 import com.adyen.checkout.bcmc.BcmcConfiguration
 import com.adyen.checkout.bcmc.BcmcView
-import com.adyen.checkout.card.CardConfiguration
-import com.adyen.checkout.card.SpinCardView
+import com.adyen.checkout.blik.BlikComponent
+import com.adyen.checkout.blik.BlikConfiguration
+import com.adyen.checkout.blik.BlikView
 import com.adyen.checkout.card.CardComponent
+import com.adyen.checkout.card.CardConfiguration
+import com.adyen.checkout.card.CardView
+import com.adyen.checkout.card.SpinCardView
+import com.adyen.checkout.components.ActionComponentProvider
+import com.adyen.checkout.components.AlwaysAvailablePaymentMethod
+import com.adyen.checkout.components.ComponentAvailableCallback
+import com.adyen.checkout.components.ComponentView
+import com.adyen.checkout.components.PaymentComponent
+import com.adyen.checkout.components.PaymentComponentProvider
+import com.adyen.checkout.components.PaymentComponentState
+import com.adyen.checkout.components.PaymentMethodAvailabilityCheck
+import com.adyen.checkout.components.ViewableComponent
+import com.adyen.checkout.components.base.BaseActionComponent
+import com.adyen.checkout.components.base.BaseConfigurationBuilder
+import com.adyen.checkout.components.base.Configuration
+import com.adyen.checkout.components.base.OutputData
+import com.adyen.checkout.components.model.paymentmethods.PaymentMethod
+import com.adyen.checkout.components.model.paymentmethods.StoredPaymentMethod
+import com.adyen.checkout.components.model.payments.request.PaymentMethodDetails
+import com.adyen.checkout.components.model.payments.response.Action
+import com.adyen.checkout.components.util.ActionTypes
+import com.adyen.checkout.components.util.PaymentMethodTypes
 import com.adyen.checkout.core.exception.CheckoutException
 import com.adyen.checkout.core.log.LogUtil
 import com.adyen.checkout.core.log.Logger
@@ -41,131 +60,162 @@ import com.adyen.checkout.eps.EPSConfiguration
 import com.adyen.checkout.eps.EPSRecyclerView
 import com.adyen.checkout.googlepay.GooglePayComponent
 import com.adyen.checkout.googlepay.GooglePayConfiguration
+import com.adyen.checkout.googlepay.GooglePayProvider
 import com.adyen.checkout.ideal.IdealComponent
 import com.adyen.checkout.ideal.IdealConfiguration
 import com.adyen.checkout.ideal.IdealRecyclerView
+import com.adyen.checkout.mbway.MBWayComponent
+import com.adyen.checkout.mbway.MBWayConfiguration
+import com.adyen.checkout.mbway.MBWayView
 import com.adyen.checkout.molpay.MolpayComponent
 import com.adyen.checkout.molpay.MolpayConfiguration
 import com.adyen.checkout.molpay.MolpayRecyclerView
 import com.adyen.checkout.openbanking.OpenBankingComponent
 import com.adyen.checkout.openbanking.OpenBankingConfiguration
 import com.adyen.checkout.openbanking.OpenBankingRecyclerView
+import com.adyen.checkout.qrcode.QRCodeComponent
+import com.adyen.checkout.qrcode.QRCodeConfiguration
+import com.adyen.checkout.qrcode.QRCodeView
+import com.adyen.checkout.redirect.RedirectComponent
+import com.adyen.checkout.redirect.RedirectConfiguration
 import com.adyen.checkout.sepa.SepaComponent
 import com.adyen.checkout.sepa.SepaConfiguration
 import com.adyen.checkout.sepa.SepaView
-import com.adyen.checkout.wechatpay.WeChatPayComponent
-import com.adyen.checkout.wechatpay.WeChatPayConfiguration
-import com.adyen.checkout.afterpay.AfterPayComponent
-import com.adyen.checkout.afterpay.AfterPayConfiguration
-import com.adyen.checkout.afterpay.AfterPayView
+import com.adyen.checkout.wechatpay.WeChatPayActionComponent
+import com.adyen.checkout.wechatpay.WeChatPayActionConfiguration
+import com.adyen.checkout.wechatpay.WeChatPayProvider
 
-class ComponentParsingProvider {
-    companion object {
-        val TAG = LogUtil.getTag()
-    }
+object ComponentParsingProvider {
+    val TAG = LogUtil.getTag()
 }
 
-@Suppress("ComplexMethod")
-internal fun <T : Configuration> getDefaultConfigFor(
-    @PaymentMethodTypes.SupportedPaymentMethod
+@Suppress("ComplexMethod", "LongMethod")
+internal fun <T : Configuration> getDefaultConfigForPaymentMethod(
     paymentMethod: String,
-    context: Context,
     adyenComponentConfiguration: AdyenComponentConfiguration
 ): T {
-
-    val specificRequirementConfigs = listOf(PaymentMethodTypes.SCHEME, PaymentMethodTypes.GOOGLE_PAY)
-
-    if (specificRequirementConfigs.contains(paymentMethod)) {
-        throw CheckoutException("Cannot provide default config for $paymentMethod. Please add it to the DropInConfiguration with required fields.")
-    }
+    val shopperLocale = adyenComponentConfiguration.shopperLocale
+    val environment = adyenComponentConfiguration.environment
+    val clientKey = adyenComponentConfiguration.clientKey
 
     // get default builder for Configuration type
     val builder: BaseConfigurationBuilder<out Configuration> = when (paymentMethod) {
-        PaymentMethodTypes.IDEAL -> {
-            IdealConfiguration.Builder(context)
+        PaymentMethodTypes.BLIK -> BlikConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.DOTPAY -> DotpayConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.ENTERCASH -> EntercashConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.EPS -> EPSConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.GOOGLE_PAY,
+        PaymentMethodTypes.GOOGLE_PAY_LEGACY -> {
+            GooglePayConfiguration.Builder(shopperLocale, environment, clientKey).apply {
+                if (!adyenComponentConfiguration.amount.isEmpty) setAmount(adyenComponentConfiguration.amount)
+            }
         }
+        PaymentMethodTypes.IDEAL -> IdealConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.MB_WAY -> MBWayConfiguration.Builder(shopperLocale, environment, clientKey)
         PaymentMethodTypes.MOLPAY_THAILAND,
         PaymentMethodTypes.MOLPAY_MALAYSIA,
-        PaymentMethodTypes.MOLPAY_VIETNAM -> {
-            MolpayConfiguration.Builder(context)
-        }
-        PaymentMethodTypes.EPS -> {
-            EPSConfiguration.Builder(context)
-        }
-        PaymentMethodTypes.OPEN_BANKING -> {
-            OpenBankingConfiguration.Builder(context)
-        }
-        PaymentMethodTypes.DOTPAY -> {
-            DotpayConfiguration.Builder(context)
-        }
-        PaymentMethodTypes.ENTERCASH -> {
-            EntercashConfiguration.Builder(context)
-        }
-        PaymentMethodTypes.SEPA -> {
-            SepaConfiguration.Builder(context)
-        }
-        PaymentMethodTypes.WECHAT_PAY_SDK -> {
-            WeChatPayConfiguration.Builder(context)
-        }
-        else -> {
-            throw CheckoutException("Unable to find component configuration for type - $paymentMethod")
-        }
+        PaymentMethodTypes.MOLPAY_VIETNAM -> MolpayConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.OPEN_BANKING -> OpenBankingConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.SEPA -> SepaConfiguration.Builder(shopperLocale, environment, clientKey)
+        PaymentMethodTypes.SCHEME -> CardConfiguration.Builder(shopperLocale, environment, clientKey)
+        else -> throw CheckoutException("Unable to find component configuration for paymentMethod - $paymentMethod")
     }
-
-    builder.setShopperLocale(adyenComponentConfiguration.shopperLocale)
-    builder.setEnvironment(adyenComponentConfiguration.environment)
 
     @Suppress("UNCHECKED_CAST")
     return builder.build() as T
 }
 
-internal fun checkComponentAvailability(
+@Suppress("ComplexMethod", "LongMethod")
+internal inline fun <reified T : Configuration> getDefaultConfigForAction(
+    adyenComponentConfiguration: AdyenComponentConfiguration
+): T {
+    val shopperLocale = adyenComponentConfiguration.shopperLocale
+    val environment = adyenComponentConfiguration.environment
+    val clientKey = adyenComponentConfiguration.clientKey
+
+    // get default builder for Configuration type
+    val builder: BaseConfigurationBuilder<out Configuration> = when (T::class) {
+        AwaitConfiguration::class -> AwaitConfiguration.Builder(shopperLocale, environment, clientKey)
+        RedirectConfiguration::class -> RedirectConfiguration.Builder(shopperLocale, environment, clientKey)
+        QRCodeConfiguration::class -> QRCodeConfiguration.Builder(shopperLocale, environment, clientKey)
+        Adyen3DS2Configuration::class -> Adyen3DS2Configuration.Builder(shopperLocale, environment, clientKey)
+        WeChatPayActionConfiguration::class -> WeChatPayActionConfiguration.Builder(shopperLocale, environment, clientKey)
+        else -> throw CheckoutException("Unable to find component configuration for class - ${T::class}")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    return builder.build() as T
+}
+
+internal fun checkPaymentMethodAvailability(
     application: Application,
     paymentMethod: PaymentMethod,
     adyenComponentConfiguration: AdyenComponentConfiguration,
     callback: ComponentAvailableCallback<in Configuration>
 ) {
     try {
-        val type = paymentMethod.type ?: throw CheckoutException("PaymentMethod is null")
+        Logger.v(ComponentParsingProvider.TAG, "Checking availability for type - ${paymentMethod.type}")
 
-        val provider = getProviderForType(type)
-        val configuration = adyenComponentConfiguration.getConfigurationFor<Configuration>(type, application)
+        val type = paymentMethod.type ?: throw CheckoutException("PaymentMethod type is null")
 
-        provider.isAvailable(application, paymentMethod, configuration, callback)
+        val availabilityCheck = getPaymentMethodAvailabilityCheck(type)
+        val configuration = adyenComponentConfiguration.getConfigurationForPaymentMethodOrNull<Configuration>(type, application)
+
+        availabilityCheck.isAvailable(application, paymentMethod, configuration, callback)
     } catch (e: CheckoutException) {
         Logger.e(ComponentParsingProvider.TAG, "Unable to initiate ${paymentMethod.type}", e)
         callback.onAvailabilityResult(false, paymentMethod, null)
     }
 }
 
-@Suppress("ComplexMethod")
-internal fun getProviderForType(type: String): PaymentComponentProvider<PaymentComponent<*>, Configuration> {
+/**
+ * Provides the [PaymentMethodAvailabilityCheck] class for the specified [paymentMethodType], if available.
+ */
+internal fun getPaymentMethodAvailabilityCheck(paymentMethodType: String): PaymentMethodAvailabilityCheck<Configuration> {
     @Suppress("UNCHECKED_CAST")
-    return when (type) {
-        PaymentMethodTypes.IDEAL -> IdealComponent.PROVIDER 
-        PaymentMethodTypes.MOLPAY_THAILAND,
-        PaymentMethodTypes.MOLPAY_MALAYSIA,
-        PaymentMethodTypes.MOLPAY_VIETNAM -> MolpayComponent.PROVIDER
-        PaymentMethodTypes.EPS -> EPSComponent.PROVIDER
-        PaymentMethodTypes.OPEN_BANKING -> OpenBankingComponent.PROVIDER
-        PaymentMethodTypes.DOTPAY -> DotpayComponent.PROVIDER
-        PaymentMethodTypes.ENTERCASH -> EntercashComponent.PROVIDER
-        PaymentMethodTypes.SCHEME -> CardComponent.PROVIDER
-        PaymentMethodTypes.GOOGLE_PAY -> GooglePayComponent.PROVIDER
-        PaymentMethodTypes.SEPA -> SepaComponent.PROVIDER
-        PaymentMethodTypes.BCMC -> BcmcComponent.PROVIDER
-        PaymentMethodTypes.WECHAT_PAY_SDK -> WeChatPayComponent.PROVIDER
-        PaymentMethodTypes.AFTER_PAY -> AfterPayComponent.PROVIDER
-        else -> {
-            throw CheckoutException("Unable to find component for type - $type")
+    return when (paymentMethodType) {
+        PaymentMethodTypes.GOOGLE_PAY,
+        PaymentMethodTypes.GOOGLE_PAY_LEGACY -> GooglePayProvider()
+        PaymentMethodTypes.WECHAT_PAY_SDK -> WeChatPayProvider()
+        else -> AlwaysAvailablePaymentMethod()
+    } as PaymentMethodAvailabilityCheck<Configuration>
+}
+
+/**
+ * Provides a [PaymentComponent] from a [PaymentComponentProvider] using the [StoredPaymentMethod] reference.
+ *
+ * @param fragment The Fragment which the PaymentComponent lifecycle will be bound to.
+ * @param storedPaymentMethod The stored payment method to be parsed.
+ * @throws CheckoutException In case a component cannot be created.
+ */
+internal fun getComponentFor(
+    fragment: Fragment,
+    storedPaymentMethod: StoredPaymentMethod,
+    adyenComponentConfiguration: AdyenComponentConfiguration
+): PaymentComponent<PaymentComponentState<in PaymentMethodDetails>, Configuration> {
+    val context = fragment.requireContext()
+
+    val component = when (storedPaymentMethod.type) {
+        PaymentMethodTypes.SCHEME -> {
+            val cardConfig: CardConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.SCHEME, context)
+            CardComponent.PROVIDER.get(fragment, storedPaymentMethod, cardConfig)
         }
-    } as PaymentComponentProvider<PaymentComponent<*>, Configuration>
+        PaymentMethodTypes.BLIK -> {
+            val blikConfig: BlikConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.BLIK, context)
+            BlikComponent.PROVIDER.get(fragment, storedPaymentMethod, blikConfig)
+        }
+        else -> {
+            throw CheckoutException("Unable to find stored component for type - ${storedPaymentMethod.type}")
+        }
+    }
+    component.setCreatedForDropIn()
+    return component as PaymentComponent<PaymentComponentState<in PaymentMethodDetails>, Configuration>
 }
 
 /**
  * Provides a [PaymentComponent] from a [PaymentComponentProvider] using the [PaymentMethod] reference.
  *
- * @param fragment The Activity/Fragment which the PaymentComponent lifecycle will be bound to.
+ * @param fragment The Fragment which the PaymentComponent lifecycle will be bound to.
  * @param paymentMethod The payment method to be parsed.
  * @throws CheckoutException In case a component cannot be created.
  */
@@ -174,102 +224,177 @@ internal fun getComponentFor(
     fragment: Fragment,
     paymentMethod: PaymentMethod,
     adyenComponentConfiguration: AdyenComponentConfiguration
-): PaymentComponent<PaymentComponentState<in PaymentMethodDetails>> {
+): PaymentComponent<PaymentComponentState<in PaymentMethodDetails>, Configuration> {
     val context = fragment.requireContext()
 
     val component = when (paymentMethod.type) {
-        PaymentMethodTypes.IDEAL -> {
-            val idealConfig: IdealConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.IDEAL, context)
-            IdealComponent.PROVIDER.get(fragment, paymentMethod, idealConfig)
+        PaymentMethodTypes.BCMC -> {
+            val bcmcConfiguration: BcmcConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.BCMC, context)
+            BcmcComponent.PROVIDER.get(fragment, paymentMethod, bcmcConfiguration)
         }
-        PaymentMethodTypes.MOLPAY_THAILAND -> {
-            val molpayConfig: MolpayConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.MOLPAY_THAILAND, context)
-            MolpayComponent.PROVIDER.get(fragment, paymentMethod, molpayConfig)
-        }
-        PaymentMethodTypes.MOLPAY_MALAYSIA -> {
-            val molpayConfig: MolpayConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.MOLPAY_MALAYSIA, context)
-            MolpayComponent.PROVIDER.get(fragment, paymentMethod, molpayConfig)
-        }
-        PaymentMethodTypes.MOLPAY_VIETNAM -> {
-            val molpayConfig: MolpayConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.MOLPAY_VIETNAM, context)
-            MolpayComponent.PROVIDER.get(fragment, paymentMethod, molpayConfig)
-        }
-        PaymentMethodTypes.EPS -> {
-            val epsConfig: EPSConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.EPS, context)
-            EPSComponent.PROVIDER.get(fragment, paymentMethod, epsConfig)
-        }
-        PaymentMethodTypes.OPEN_BANKING -> {
-            val openBankingConfig: OpenBankingConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.OPEN_BANKING, context)
-            OpenBankingComponent.PROVIDER.get(fragment, paymentMethod, openBankingConfig)
+        PaymentMethodTypes.BLIK -> {
+            val blikConfiguration: BlikConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.BLIK, context)
+            BlikComponent.PROVIDER.get(fragment, paymentMethod, blikConfiguration)
         }
         PaymentMethodTypes.DOTPAY -> {
-            val dotpayConfig: DotpayConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.DOTPAY, context)
+            val dotpayConfig: DotpayConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.DOTPAY, context)
             DotpayComponent.PROVIDER.get(fragment, paymentMethod, dotpayConfig)
         }
         PaymentMethodTypes.ENTERCASH -> {
-            val entercashConfig: EntercashConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.ENTERCASH, context)
+            val entercashConfig: EntercashConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.ENTERCASH, context)
             EntercashComponent.PROVIDER.get(fragment, paymentMethod, entercashConfig)
         }
-        PaymentMethodTypes.SCHEME -> {
-            val cardConfig: CardConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.SCHEME, context)
-            CardComponent.PROVIDER.get(fragment, paymentMethod, cardConfig)
+        PaymentMethodTypes.EPS -> {
+            val epsConfig: EPSConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.EPS, context)
+            EPSComponent.PROVIDER.get(fragment, paymentMethod, epsConfig)
         }
         PaymentMethodTypes.GOOGLE_PAY -> {
-            val googlePayConfiguration: GooglePayConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.GOOGLE_PAY, context)
+            val googlePayConfiguration: GooglePayConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(
+                PaymentMethodTypes.GOOGLE_PAY,
+                context
+            )
             GooglePayComponent.PROVIDER.get(fragment, paymentMethod, googlePayConfiguration)
         }
+        PaymentMethodTypes.GOOGLE_PAY_LEGACY -> {
+            val googlePayConfiguration: GooglePayConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(
+                PaymentMethodTypes.GOOGLE_PAY_LEGACY,
+                context
+            )
+            GooglePayComponent.PROVIDER.get(fragment, paymentMethod, googlePayConfiguration)
+        }
+        PaymentMethodTypes.IDEAL -> {
+            val idealConfig: IdealConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.IDEAL, context)
+            IdealComponent.PROVIDER.get(fragment, paymentMethod, idealConfig)
+        }
+        PaymentMethodTypes.MB_WAY -> {
+            val mbWayConfiguration: MBWayConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.MB_WAY, context)
+            MBWayComponent.PROVIDER.get(fragment, paymentMethod, mbWayConfiguration)
+        }
+        PaymentMethodTypes.MOLPAY_THAILAND -> {
+            val molpayConfig: MolpayConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.MOLPAY_THAILAND, context)
+            MolpayComponent.PROVIDER.get(fragment, paymentMethod, molpayConfig)
+        }
+        PaymentMethodTypes.MOLPAY_MALAYSIA -> {
+            val molpayConfig: MolpayConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.MOLPAY_MALAYSIA, context)
+            MolpayComponent.PROVIDER.get(fragment, paymentMethod, molpayConfig)
+        }
+        PaymentMethodTypes.MOLPAY_VIETNAM -> {
+            val molpayConfig: MolpayConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(
+                PaymentMethodTypes.MOLPAY_VIETNAM,
+                context
+            )
+            MolpayComponent.PROVIDER.get(fragment, paymentMethod, molpayConfig)
+        }
+        PaymentMethodTypes.OPEN_BANKING -> {
+            val openBankingConfig: OpenBankingConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(
+                PaymentMethodTypes.OPEN_BANKING,
+                context
+            )
+            OpenBankingComponent.PROVIDER.get(fragment, paymentMethod, openBankingConfig)
+        }
+        PaymentMethodTypes.SCHEME -> {
+            val cardConfig: CardConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.SCHEME, context)
+            CardComponent.PROVIDER.get(fragment, paymentMethod, cardConfig)
+        }
         PaymentMethodTypes.SEPA -> {
-            val sepaConfiguration: SepaConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.SEPA, context)
+            val sepaConfiguration: SepaConfiguration = adyenComponentConfiguration.getConfigurationForPaymentMethod(PaymentMethodTypes.SEPA, context)
             SepaComponent.PROVIDER.get(fragment, paymentMethod, sepaConfiguration)
         }
-        PaymentMethodTypes.BCMC -> {
-            val bcmcConfiguration: BcmcConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.BCMC, context)
-            BcmcComponent.PROVIDER.get(fragment, paymentMethod, bcmcConfiguration)
-        }
-        PaymentMethodTypes.WECHAT_PAY_SDK -> {
-            val weChatPayConfiguration: WeChatPayConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.WECHAT_PAY_SDK, context)
-            WeChatPayComponent.PROVIDER.get(fragment, paymentMethod, weChatPayConfiguration)
-        }
-        PaymentMethodTypes.AFTER_PAY -> {
-            val afterPayConfiguration: AfterPayConfiguration = adyenComponentConfiguration.getConfigurationFor(PaymentMethodTypes.AFTER_PAY, context)
-            AfterPayComponent.PROVIDER.get(fragment, paymentMethod, afterPayConfiguration)
-        }
+
         else -> {
             throw CheckoutException("Unable to find component for type - ${paymentMethod.type}")
         }
     }
     component.setCreatedForDropIn()
-    return component as PaymentComponent<PaymentComponentState<in PaymentMethodDetails>>
+    return component as PaymentComponent<PaymentComponentState<in PaymentMethodDetails>, Configuration>
 }
 
 /**
  * Provides a [ComponentView] to be used in Drop-in using the [PaymentMethod] reference.
  * View type is defined by our UI specifications.
- *MolpayRecyclerView.java
+ *
  * @param context The context used to create the View
- * @param paymentMethod The payment method to be parsed.
+ * @param paymentType The type identifying the method to be parsed.
  */
+@Suppress("ComplexMethod")
 internal fun getViewFor(
     context: Context,
-    paymentMethod: PaymentMethod
-): ComponentView<PaymentComponent<PaymentComponentState<in PaymentMethodDetails>>> {
+    paymentType: String
+): ComponentView<in OutputData, ViewableComponent<*, *, *>> {
     @Suppress("UNCHECKED_CAST")
-    return when (paymentMethod.type) {
+    return when (paymentType) {
+        PaymentMethodTypes.BCMC -> BcmcView(context)
+        PaymentMethodTypes.DOTPAY -> DotpayRecyclerView(context)
+        PaymentMethodTypes.ENTERCASH -> EntercashRecyclerView(context)
+        PaymentMethodTypes.EPS -> EPSRecyclerView(context)
         PaymentMethodTypes.IDEAL -> IdealRecyclerView(context)
+        PaymentMethodTypes.MB_WAY -> MBWayView(context)
         PaymentMethodTypes.MOLPAY_THAILAND,
         PaymentMethodTypes.MOLPAY_MALAYSIA,
         PaymentMethodTypes.MOLPAY_VIETNAM -> MolpayRecyclerView(context)
-        PaymentMethodTypes.EPS -> EPSRecyclerView(context)
-        PaymentMethodTypes.DOTPAY -> DotpayRecyclerView(context)
         PaymentMethodTypes.OPEN_BANKING -> OpenBankingRecyclerView(context)
-        PaymentMethodTypes.ENTERCASH -> EntercashRecyclerView(context)
         PaymentMethodTypes.SCHEME -> SpinCardView(context)
         PaymentMethodTypes.SEPA -> SepaView(context)
-        PaymentMethodTypes.BCMC -> BcmcView(context)
-        PaymentMethodTypes.AFTER_PAY -> AfterPayView(context)
+        PaymentMethodTypes.BLIK -> BlikView(context)
         // GooglePay and WeChatPay do not require a View in Drop-in
+        ActionTypes.AWAIT -> AwaitView(context)
+        ActionTypes.QR_CODE -> QRCodeView(context)
         else -> {
-            throw CheckoutException("Unable to find view for type - ${paymentMethod.type}")
+            throw CheckoutException("Unable to find view for type - $paymentType")
         }
-    } as ComponentView<PaymentComponent<in PaymentComponentState<in PaymentMethodDetails>>>
+        // TODO check if this generic approach can be improved
+    } as ComponentView<in OutputData, ViewableComponent<*, *, *>>
 }
+
+/**
+ * @param action The action to be handled
+ *
+ * @return The provider able to handle the action.
+ */
+internal fun getActionProviderFor(action: Action): ActionComponentProvider<out BaseActionComponent<out Configuration>, out Configuration>? {
+    val allActionProviders = listOf(
+        RedirectComponent.PROVIDER,
+        Adyen3DS2Component.PROVIDER,
+        WeChatPayActionComponent.PROVIDER,
+        AwaitComponent.PROVIDER,
+        QRCodeComponent.PROVIDER
+    )
+    return allActionProviders.firstOrNull { it.canHandleAction(action) }
+}
+
+/**
+ * Provides a [BaseActionComponent] from an [ActionComponentProvider].
+ *
+ * @param activity The Action which the ActionComponent lifecycle will be bound to.
+ * @param provider The component provider.
+ * @throws CheckoutException In case a component cannot be created.
+ */
+@Suppress("ComplexMethod", "LongMethod")
+internal fun getActionComponentFor(
+    activity: FragmentActivity,
+    provider: ActionComponentProvider<out BaseActionComponent<out Configuration>, out Configuration>,
+    adyenComponentConfiguration: AdyenComponentConfiguration
+): BaseActionComponent<out Configuration> {
+    return when (provider) {
+        RedirectComponent.PROVIDER -> {
+            RedirectComponent.PROVIDER.get(activity, activity.application, adyenComponentConfiguration.getConfigurationForAction())
+        }
+        Adyen3DS2Component.PROVIDER -> {
+            Adyen3DS2Component.PROVIDER.get(activity, activity.application, adyenComponentConfiguration.getConfigurationForAction())
+        }
+        WeChatPayActionComponent.PROVIDER -> {
+            WeChatPayActionComponent.PROVIDER.get(activity, activity.application, adyenComponentConfiguration.getConfigurationForAction())
+        }
+        AwaitComponent.PROVIDER -> {
+            AwaitComponent.PROVIDER.get(activity, activity.application, adyenComponentConfiguration.getConfigurationForAction())
+        }
+        QRCodeComponent.PROVIDER -> {
+            QRCodeComponent.PROVIDER.get(activity, activity.application, adyenComponentConfiguration.getConfigurationForAction())
+        }
+        else -> {
+            throw CheckoutException("Unable to find component for provider - $provider")
+        }
+    }
+}
+
+
