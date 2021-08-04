@@ -3,25 +3,30 @@ package com.rnlib.adyen.ui.base
 import android.app.Dialog
 import android.content.Context
 import android.os.Bundle
-
+import android.view.KeyEvent
+import android.widget.FrameLayout
+import androidx.fragment.app.activityViewModels
+import com.adyen.checkout.components.ActionComponentData
+import com.adyen.checkout.components.PaymentComponentState
+import com.adyen.checkout.components.model.paymentmethods.PaymentMethod
+import com.adyen.checkout.components.model.paymentmethods.StoredPaymentMethod
+import com.adyen.checkout.core.log.LogUtil
+import com.adyen.checkout.core.log.Logger
+import com.adyen.checkout.dropin.R
+import com.adyen.checkout.googlepay.GooglePayConfiguration
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.rnlib.adyen.ui.AdyenComponentViewModel
 
-import android.view.KeyEvent
-import android.widget.FrameLayout
-import com.adyen.checkout.base.model.paymentmethods.PaymentMethod
-import com.adyen.checkout.base.model.payments.request.PaymentComponentData
-import com.adyen.checkout.base.model.payments.request.PaymentMethodDetails
-
-import com.rnlib.adyen.R
-import com.adyen.checkout.googlepay.GooglePayConfiguration
+private val TAG = LogUtil.getTag()
 
 abstract class DropInBottomSheetDialogFragment : BottomSheetDialogFragment() {
 
     lateinit var protocol: Protocol
 
     private var dialogInitViewState: Int = BottomSheetBehavior.STATE_COLLAPSED
+    protected val adyenComponentViewModel: AdyenComponentViewModel by activityViewModels()
 
     fun setInitViewState(firstViewState: Int) {
         this.dialogInitViewState = firstViewState
@@ -35,30 +40,34 @@ abstract class DropInBottomSheetDialogFragment : BottomSheetDialogFragment() {
         if (activity is Protocol) {
             protocol = activity as Protocol
         } else {
-            throw IllegalArgumentException("Host activity need to inheritance the IDropIn")
+            throw IllegalArgumentException("Host activity needs to implement DropInBottomSheetDialogFragment.Protocol")
         }
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        var dialog = super.onCreateDialog(savedInstanceState)
+        val dialog = super.onCreateDialog(savedInstanceState)
 
         dialog.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
                 onBackPressed()
+            } else {
+                false
             }
-            false
         }
 
-        dialog.setOnShowListener { dialog ->
-            val bottomSheet = (dialog as BottomSheetDialog)
-                    .findViewById<FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)
+        dialog.setOnShowListener {
+            val bottomSheet = (dialog as BottomSheetDialog).findViewById<FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)
 
-            var behavior = BottomSheetBehavior.from(bottomSheet)
+            if (bottomSheet != null) {
+                val behavior = BottomSheetBehavior.from(bottomSheet)
 
-            if (this.dialogInitViewState == BottomSheetBehavior.STATE_EXPANDED)
-                behavior.skipCollapsed = true
-
-            behavior.state = this.dialogInitViewState
+                if (this.dialogInitViewState == BottomSheetBehavior.STATE_EXPANDED) {
+                    behavior.skipCollapsed = true
+                }
+                behavior.state = this.dialogInitViewState
+            } else {
+                Logger.e(TAG, "Failed to set BottomSheetBehavior.")
+            }
         }
 
         return dialog
@@ -68,12 +77,19 @@ abstract class DropInBottomSheetDialogFragment : BottomSheetDialogFragment() {
         return false
     }
 
+    /**
+     * Interface for Drop-in fragments to interact with the main Activity
+     */
     interface Protocol {
-        fun showComponentDialog(paymentMethod: PaymentMethod, wasInExpandMode: Boolean)
-        fun showPaymentMethodsDialog(showInExpandStatus: Boolean)
-        fun requestPaymentsCall(paymentComponentData: PaymentComponentData<*>)
-        //fun sendPaymentRequest(paymentComponentData: PaymentComponentData<in PaymentMethodDetails>)
+        fun showPreselectedDialog()
+        fun showPaymentMethodsDialog()
+        fun showStoredComponentDialog(storedPaymentMethod: StoredPaymentMethod, fromPreselected: Boolean)
+        fun showComponentDialog(paymentMethod: PaymentMethod)
+        fun requestPaymentsCall(paymentComponentState: PaymentComponentState<*>)
+        fun requestDetailsCall(actionComponentData: ActionComponentData)
+        fun showError(errorMessage: String, reason: String, terminate: Boolean)
         fun terminateDropIn()
         fun startGooglePay(paymentMethod: PaymentMethod, googlePayConfiguration: GooglePayConfiguration)
     }
 }
+

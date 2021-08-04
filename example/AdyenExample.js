@@ -5,6 +5,7 @@ import {
   ADYEN_MERCHANT_ACCOUNT,
   SPIN_BEARER_TOKEN,
   ADYEN_CLIENT_KEY,
+  ADYEN_PUBLIC_KEY,
   ADYEN_BASE_URL,
   ADYEN_ENVIRONMENT,
 } from '@env';
@@ -33,7 +34,6 @@ const MOCK_PAYMENT_DETAILS = {
 
 const MOCK_COMPONENT_DATA = {
   scheme: {
-    shouldShowPostalCode: true,
     shouldShowSCAToggle: true,
   },
   // Uncomment to add Apple Pay (replace apple_pay_merchant_id):
@@ -42,12 +42,17 @@ const MOCK_COMPONENT_DATA = {
     supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
     merchantCapabilities: ['supports3DS'],
   },
+
+  paywithgoogle: {
+    merchantAccount: 'SpinUS',
+  },
 };
 
 const APP_SERVICE_CONFIG_DATA = {
   environment: ADYEN_ENVIRONMENT,
   base_url: ADYEN_BASE_URL,
   client_key: ADYEN_CLIENT_KEY,
+  card_public_key: ADYEN_PUBLIC_KEY,
   // Add any additional headers to pass to your backend
   additional_http_headers: {
     'Device-Platform': Platform.OS, // Example
@@ -106,13 +111,24 @@ function AdyenExample() {
     handleButtonPress(AdyenPayment.APPLE_PAY);
   }
 
+  function handleGooglePayPress() {
+    handleButtonPress(AdyenPayment.GOOGLE_PAY_LEGACY);
+  }
+
+
+
   return (
     <View>
       <Text>Status: {status}</Text>
       <Text>canMakeNativePayPayments: {canMakeNativePayPayments ? "true" : "false"}</Text>
       <Button title="Drop-in" onPress={handleDropinButtonPress} />
       <Button title="Card Component" onPress={handleCardButtonPress} />
-      <Button title="Apple Pay" onPress={handleApplePayButtonPress} />
+      {Platform.OS === 'ios' && (
+        <Button title="Apple Pay" onPress={handleApplePayButtonPress} />
+      )}
+      {Platform.OS === 'android' && (
+        <Button title="Google Pay" onPress={handleGooglePayPress} />
+      )}
     </View>
   );
 }

@@ -14,7 +14,8 @@ const EPS = "eps";
 const ENTERCASH = "entercash";
 const OPEN_BANKING = "openbanking_UK";
 const SCHEME = "scheme";
-const GOOGLE_PAY = "paywithgoogle";
+const GOOGLE_PAY = "googlepay";
+const GOOGLE_PAY_LEGACY = "paywithgoogle";
 const SEPA = "sepadirectdebit";
 const BCMC = "bcmc";
 const WECHAT_PAY_SDK = "wechatpaySDK";
@@ -27,6 +28,7 @@ export default {
     MOLPAY_MALAYSIA,MOLPAY_THAILAND,MOLPAY_VIETNAM,DOTPAY,EPS,ENTERCASH,OPEN_BANKING,
     SCHEME,
     GOOGLE_PAY,
+    GOOGLE_PAY_LEGACY,
     SEPA,
     BCMC,
     WECHAT_PAY_SDK,
@@ -43,7 +45,7 @@ export default {
             supported_components = [APPLE_PAY];
         }
         else if (Platform.OS  === 'android') {
-            supported_components = [WECHAT_PAY_SDK,GOOGLE_PAY,AFTERPAY];
+            supported_components = [WECHAT_PAY_SDK,GOOGLE_PAY,GOOGLE_PAY_LEGACY,AFTERPAY];
         }
         if(default_components.indexOf(component) !== -1 || supported_components.indexOf(component) !== -1){
             return AdyenPayment.startPaymentPromise(component,componentData,paymentDetails)
@@ -59,7 +61,7 @@ export default {
             supported_components = [APPLE_PAY];
         }
         else if (Platform.OS  === 'android') {
-            supported_components = [WECHAT_PAY_SDK,GOOGLE_PAY,AFTERPAY];
+            supported_components = [WECHAT_PAY_SDK,GOOGLE_PAY,GOOGLE_PAY_LEGACY,AFTERPAY];
         }
         if(default_components.indexOf(component) !== -1 || supported_components.indexOf(component) !== -1){
             return AdyenPayment.startPayment(component,componentData,paymentDetails)

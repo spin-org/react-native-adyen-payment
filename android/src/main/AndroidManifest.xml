@@ -19,9 +19,6 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".AdyenDropInService"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
-        <service
             android:name=".AdyenComponentService"
             android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>

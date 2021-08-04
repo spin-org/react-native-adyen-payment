@@ -8,24 +8,17 @@
 
 <resources xmlns:tools="http://schemas.android.com/tools">
 
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar.Bridge">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
     <!-- Override 3DS2 Theme to match Checkout theme -->
     <style name="ThreeDS2Theme" parent="AdyenCheckout" tools:ignore="PrivateResource" />
-
-    <style name="AdyenCheckout.Button.Colored" parent="Widget.AppCompat.Button.Colored">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">@dimen/pay_button_height</item>
-        <item name="android:layout_marginBottom">@dimen/standard_half_margin</item>
-        <item name="android:layout_marginLeft">@dimen/standard_margin</item>
-        <item name="android:layout_marginRight">@dimen/standard_margin</item>
-        <item name="android:textColor">@color/white</item>
-        <item name="android:theme">@style/AdyenCheckout.PrimaryFlatButton</item>
-    </style>
-
-    <style name="AdyenCheckout.PrimaryFlatButton" parent="Theme.AppCompat.Light">
-        <item name="android:buttonStyle">@style/Widget.AppCompat.Button.Borderless.Colored</item>
-        <item name="colorAccent">@color/spin_orange</item>
-        <item name="colorButtonNormal">@color/spin_orange_accent</item>
-    </style>
 
     <style name="AdyenCheckout.BottomSheet" parent="@style/Widget.Design.BottomSheet.Modal">
         <item name="android:background">@drawable/bg_bottom_sheet_dialog_fragment</item>
@@ -38,6 +31,14 @@
         <item name="android:layout_marginTop">@dimen/standard_quarter_margin</item>
         <item name="android:layout_marginBottom">@dimen/standard_half_margin</item>
         <item name="android:background">@drawable/bottom_sheet_indicator</item>
+    </style>
+
+    <style name="AdyenCheckout.Translucent">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
     </style>
 
     <style name="AdyenCheckout.BaseBottomSheetDialog" parent="@style/Theme.Design.Light.BottomSheetDialog">
