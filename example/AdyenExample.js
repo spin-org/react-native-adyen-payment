@@ -14,7 +14,7 @@ const MOCK_PAYMENT_DETAILS = {
     value: 100,
     currency: 'USD',
   },
-  reference: '123456',
+  reference: 'api/v1/adyen/trip_payments',
   shopperReference: '123456',
   shopperEmail: 'test@test.test',
   shopperLocale: 'en_US',

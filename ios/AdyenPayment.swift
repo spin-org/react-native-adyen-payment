@@ -51,6 +51,7 @@ class AdyenPayment: RCTEventEmitter {
         PaymentsData.reference = paymentDetails["reference"] as! String
         PaymentsData.countryCode = paymentDetails["countryCode"] as! String
         PaymentsData.returnUrl = paymentDetails["returnUrl"] as! String
+        PaymentsData.regionId = paymentDetails["regionId"] as! Int
 //        PaymentsData.shopperReference = paymentDetails["shopperReference"] as! String
 //        PaymentsData.shopperEmail = paymentDetails["shopperEmail"] as! String
 //        PaymentsData.shopperLocale = paymentDetails["shopperLocale"] as! String
