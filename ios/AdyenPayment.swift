@@ -112,7 +112,7 @@ class AdyenPayment: RCTEventEmitter {
 //            }else{
 			let style = FormComponentStyle(tintColor: UIColor(red: 1.0, green: 84.0 / 255.0, blue: 54.0 / 255.0, alpha: 1.0))
             let component = CardComponent(paymentMethod: paymentMethod, apiContext: APIContext(environment: AppServiceConfigData.environmentObject, clientKey: clientKey), configuration: CardComponent.Configuration(showsStorePaymentMethodField: shouldShowSCAToggle, billingAddressMode: shouldShowPostalCode ? .postalCode : .none), style: style)
-            self.present(component)
+            self.present(component, showTitle: true)
 //            }
         }
     }
@@ -346,18 +346,31 @@ class AdyenPayment: RCTEventEmitter {
     }
  */
     
-    func present(_ component: PresentableComponent) {
+    func present(_ component: PresentableComponent, showTitle: Bool=false) {
         if let paymentComponent = component as? PaymentComponent {
-			paymentComponent.payment = Payment(amount: PaymentsData.amount, countryCode: PaymentsData.countryCode)
+            paymentComponent.payment = Payment(amount: PaymentsData.amount, countryCode: PaymentsData.countryCode)
             paymentComponent.delegate = self
         }
         
         if let actionComponent = component as? ActionComponent {
             actionComponent.delegate = self
         }
-		
-        findTopMostViewController().present(component.viewController, animated: true)
+        
+        if showTitle {
+            let navigation = UINavigationController(rootViewController: component.viewController)
+            component.viewController.navigationItem.leftBarButtonItem = .init(barButtonSystemItem: .cancel,
+                                                                              target: self,
+                                                                              action: #selector(cancelDidPress))
+            findTopMostViewController().present(navigation, animated: true)
+        } else {
+            findTopMostViewController().present(component.viewController, animated: true)
+        }
         self.currentComponent = component
+    }
+    
+    @objc private func cancelDidPress() {
+        currentComponent?.cancelIfNeeded()
+        findTopMostViewController().dismiss(animated: true, completion: nil)
     }
     
     func performPayment(with data: PaymentComponentData) {
