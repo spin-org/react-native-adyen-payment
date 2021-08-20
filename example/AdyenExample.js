@@ -12,18 +12,19 @@ import {
 const MOCK_PAYMENT_DETAILS = {
   amount: {
     value: 100,
-    currency: 'USD',
+    currency: 'EUR',
   },
   reference: 'api/v1/adyen/trip_payments',
   shopperReference: '123456',
   shopperEmail: 'test@test.test',
   shopperLocale: 'en_US',
   channel: Platform.OS === 'ios' ? 'iOS' : 'Android',
-  countryCode: 'US',
+  countryCode: 'ES',
   // Remember to replace returnUrl with your app scheme
   returnUrl:
     Platform.OS === 'ios' ? 'your-ios-scheme://' : 'your-android-scheme://',
   merchantAccount: ADYEN_MERCHANT_ACCOUNT,
+  regionId: 241,
   additionalData: {
     allow3DS2: true,
     executeThreeD: true,
@@ -36,11 +37,11 @@ const MOCK_COMPONENT_DATA = {
     shouldShowSCAToggle: true,
   },
   // Uncomment to add Apple Pay (replace apple_pay_merchant_id):
-  // applepay: {
-  //   apple_pay_merchant_id: 'merchant.com.adyen.your.merchant',
-  //   supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
-  //   merchantCapabilities: ['supports3DS'],
-  // },
+  applepay: {
+    apple_pay_merchant_id: 'merchant.com.spin',
+    supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
+    merchantCapabilities: ['supports3DS'],
+  },
 };
 
 const APP_SERVICE_CONFIG_DATA = {
@@ -49,7 +50,7 @@ const APP_SERVICE_CONFIG_DATA = {
   client_key: ADYEN_CLIENT_KEY,
   // Add any additional headers to pass to your backend
   additional_http_headers: {
-    'x-channel': Platform.OS, // Example
+    'Device-Platform': Platform.OS, // Example
     Authorization: `Bearer ${SPIN_BEARER_TOKEN}`,
   },
 };
@@ -63,6 +64,7 @@ const STATUS = {
 
 function AdyenExample() {
   const [status, setStatus] = useState(STATUS.none);
+  const [canMakeNativePayPayments, setCanMakeNativePayPayments] = useState(false);
 
   useEffect(() => {
     AdyenPayment.initialize(APP_SERVICE_CONFIG_DATA);
@@ -75,7 +77,8 @@ function AdyenExample() {
       console.log('failure', payload);
       setStatus(STATUS.failure);
     });
-  }, []);
+    setCanMakeNativePayPayments(AdyenPayment.canMakeNativePayPayments())
+  }, [canMakeNativePayPayments, setCanMakeNativePayPayments]);
 
   function handleButtonPress(type) {
     setStatus(STATUS.initiated);
@@ -99,11 +102,17 @@ function AdyenExample() {
     handleButtonPress(AdyenPayment.DROPIN);
   }
 
+  function handleApplePayButtonPress() {
+    handleButtonPress(AdyenPayment.APPLE_PAY);
+  }
+
   return (
     <View>
       <Text>Status: {status}</Text>
+      <Text>canMakeNativePayPayments: {canMakeNativePayPayments ? "true" : "false"}</Text>
       <Button title="Drop-in" onPress={handleDropinButtonPress} />
       <Button title="Card Component" onPress={handleCardButtonPress} />
+      <Button title="Apple Pay" onPress={handleApplePayButtonPress} />
     </View>
   );
 }

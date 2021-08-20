@@ -67,6 +67,15 @@ export default {
             throw new Error(`${component} is not supported for ${Platform.OS} Platform`);
         }
     },
+    canMakeNativePayPayments() {
+        if (Platform.OS === 'ios') {
+            return AdyenPayment.canMakeApplePayPayments()
+        } else if (Platform.OS === 'android') {
+            // TODO: implement android native method
+        } else {
+            throw new Error(`${component} is not supported for ${Platform.OS} Platform`); 
+        }
+    },
     /**
      * @callback mOnSuccess
      * @param {Object} message
