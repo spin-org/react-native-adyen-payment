@@ -21,11 +21,13 @@ import com.adyen.checkout.card.data.ExpiryDate
 import com.adyen.checkout.card.databinding.CardViewBinding
 import com.adyen.checkout.card.ui.SecurityCodeInput
 import com.adyen.checkout.components.api.ImageLoader
+import com.adyen.checkout.components.base.AddressVisibility
 import com.adyen.checkout.components.ui.FieldState
 import com.adyen.checkout.components.ui.Validation
 import com.adyen.checkout.components.ui.view.AdyenLinearLayout
 import com.adyen.checkout.components.ui.view.AdyenTextInputEditText
 import com.adyen.checkout.components.ui.view.RoundCornerImageView
+import com.adyen.checkout.components.util.PaymentMethodTypes
 
 /**
  * CardView for [CardComponent].
@@ -269,21 +271,33 @@ class SpinCardView @JvmOverloads constructor(context: Context, attrs: AttributeS
     }
 
     private fun initPostalCodeInput() {
-        val postalCodeEditText = binding.textInputLayoutPostalCode.editText as? AdyenTextInputEditText
-        postalCodeEditText?.setOnChangeListener {
-            mCardInputData.postalCode = it.toString()
-            notifyInputDataChanged()
-            binding.textInputLayoutPostalCode.error = null
-        }
-
-        postalCodeEditText?.onFocusChangeListener = OnFocusChangeListener { _, hasFocus ->
-            val postalCodeValidation = component.outputData?.postalCodeState?.validation
-            if (hasFocus) {
-                binding.textInputLayoutPostalCode.error = null
-            } else if (postalCodeValidation != null && postalCodeValidation is Validation.Invalid) {
-                binding.textInputLayoutPostalCode.error = mLocalizedContext.getString(postalCodeValidation.reason)
+        val postalCodeRequired = isPostalCodeRequired()
+        val postalCodeInputLayout = binding.textInputLayoutPostalCode
+        if (postalCodeRequired) {
+            val postalCodeEditText =
+                postalCodeInputLayout.editText as? AdyenTextInputEditText
+            postalCodeEditText?.setOnChangeListener {
+                mCardInputData.postalCode = it.toString()
+                notifyInputDataChanged()
+                postalCodeInputLayout.error = null
             }
+
+            postalCodeEditText?.onFocusChangeListener = OnFocusChangeListener { _, hasFocus ->
+                val postalCodeValidation = component.outputData?.postalCodeState?.validation
+                if (hasFocus) {
+                    postalCodeInputLayout.error = null
+                } else if (postalCodeValidation != null && postalCodeValidation is Validation.Invalid) {
+                    postalCodeInputLayout.error =
+                        mLocalizedContext.getString(postalCodeValidation.reason)
+                }
+            }
+        } else {
+            postalCodeInputLayout.visibility = View.GONE
         }
+    }
+
+    private fun isPostalCodeRequired(): Boolean {
+        return component.configuration.addressVisibility == AddressVisibility.POSTAL_CODE
     }
 
     private fun handleCvcUIState() {
