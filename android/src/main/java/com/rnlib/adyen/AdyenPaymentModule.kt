@@ -338,8 +338,10 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
     private fun showCardComponent(componentData : JSONObject){
         val context = reactApplicationContext
         val cardComponent : JSONObject = componentData.getJSONObject(PaymentMethodTypes.SCHEME)
+        val shouldShowPostalCode = cardComponent.getBoolean("shouldShowPostalCode")
         val cardConfiguration = CardConfiguration.Builder(context, configData.clientKey)
                             .setShowStorePaymentField(cardComponent.getBoolean("shouldShowSCAToggle"))
+                            .setAddressVisibility(if (shouldShowPostalCode) AddressVisibility.POSTAL_CODE else AddressVisibility.NONE)
                             .build()
         val configBuilder : AdyenComponentConfiguration.Builder = createConfigurationBuilder(context)
         configBuilder.addCardConfiguration(cardConfiguration)
