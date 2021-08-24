@@ -12,6 +12,5 @@ data class AppServiceConfigData(
     var environment: String = "",
     var baseUrl: String = "",
     var appUrlHeaders: Map<String, String> = HashMap<String, String>(),
-    var cardPublicKey: String = "",
     var clientKey: String = ""
 )

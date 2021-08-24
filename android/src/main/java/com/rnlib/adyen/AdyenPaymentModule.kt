@@ -61,7 +61,6 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
     companion object {
         private const val REACT_CLASS = "AdyenPayment"
         const val MERCHANT_ACCOUNT_KEY = "merchantAccount"
-        const val CARD_PUBLIC_KEY = "card_public_key"
         const val CLIENT_KEY = "client_key"
         const val BASE_URL_KEY = "base_url"
         const val ENVIRONMENT_KEY = "environment"
@@ -141,7 +140,6 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
         configData.environment = appServiceConfigJSON.getString(ENVIRONMENT_KEY)
         configData.baseUrl = appServiceConfigJSON.getString(BASE_URL_KEY)
         configData.appUrlHeaders = headersMap
-        configData.cardPublicKey = appServiceConfigJSON.getString(CARD_PUBLIC_KEY)
         configData.clientKey = appServiceConfigJSON.getString(CLIENT_KEY)
     }
     

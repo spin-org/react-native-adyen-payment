@@ -5,7 +5,6 @@ import {
   ADYEN_MERCHANT_ACCOUNT,
   SPIN_BEARER_TOKEN,
   ADYEN_CLIENT_KEY,
-  ADYEN_PUBLIC_KEY,
   ADYEN_BASE_URL,
   ADYEN_ENVIRONMENT,
 } from '@env';
@@ -53,7 +52,6 @@ const APP_SERVICE_CONFIG_DATA = {
   environment: ADYEN_ENVIRONMENT,
   base_url: ADYEN_BASE_URL,
   client_key: ADYEN_CLIENT_KEY,
-  card_public_key: ADYEN_PUBLIC_KEY,
   // Add any additional headers to pass to your backend
   additional_http_headers: {
     'Device-Platform': Platform.OS, // Example
