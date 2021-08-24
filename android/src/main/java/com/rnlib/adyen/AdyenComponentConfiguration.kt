@@ -2,6 +2,7 @@ package com.rnlib.adyen
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.Parcel
 import android.os.Parcelable
 import com.adyen.checkout.adyen3ds2.Adyen3DS2Configuration
@@ -46,6 +47,7 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
 
     private val availablePaymentConfigs: Map<String, Configuration>
     private val availableActionConfigs: Map<Class<*>, Configuration>
+    val resultHandlerIntent: Intent
     val serviceComponentName: ComponentName
     val amount: Amount
     var dropIn: Boolean = false
@@ -65,6 +67,7 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
     ) : super(builder.shopperLocale, builder.environment, builder.clientKey) {
         this.availablePaymentConfigs = builder.availablePaymentConfigs
         this.availableActionConfigs = builder.availableActionConfigs
+        this.resultHandlerIntent = builder.resultHandlerIntent
         this.serviceComponentName = builder.serviceComponentName
         this.amount = builder.amount
         this.dropIn = builder.dropIn
@@ -78,6 +81,7 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
         @Suppress("UNCHECKED_CAST")
         availableActionConfigs =
             parcel.readHashMap(Configuration::class.java.classLoader) as HashMap<Class<*>, Configuration>
+        resultHandlerIntent = parcel.readParcelable(Intent::class.java.classLoader)!!
         serviceComponentName = parcel.readParcelable(ComponentName::class.java.classLoader)!!
         amount = Amount.CREATOR.createFromParcel(parcel)
         dropIn = ParcelUtils.readBoolean(parcel)
@@ -88,6 +92,7 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
         super.writeToParcel(dest, flags)
         dest.writeMap(availablePaymentConfigs)
         dest.writeMap(availableActionConfigs)
+        dest.writeParcelable(resultHandlerIntent, flags)
         dest.writeParcelable(serviceComponentName, flags)
         JsonUtils.writeToParcel(dest, Amount.SERIALIZER.serialize(amount))
         ParcelUtils.writeBoolean(dest, dropIn)
@@ -142,7 +147,8 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
 
         var availablePaymentConfigs = HashMap<String, Configuration>()
         var availableActionConfigs = HashMap<Class<*>, Configuration>()
-
+        var resultHandlerIntent: Intent
+            private set
         var shopperLocale: Locale
             private set
         var environment: Environment = Environment.EUROPE
@@ -166,13 +172,15 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
          * Create a [AdyenComponentConfiguration]
          *
          * @param context
+         * @param resultHandlerIntent The Intent used with [Activity.startActivity] that will contain the payment result extra with key [RESULT_KEY].
          * @param serviceClass Service that extended from [DropInService] that would handle network requests.
          * @param clientKey Your Client Key used for network calls from the SDK to Adyen.
          */
-        constructor(context: Context, serviceClass: Class<out Any?>, clientKey: String) {
+        constructor(context: Context, resultHandlerIntent: Intent, serviceClass: Class<out Any?>, clientKey: String) {
             this.packageName = context.packageName
             this.serviceClassName = serviceClass.name
 
+            this.resultHandlerIntent = resultHandlerIntent
             this.serviceComponentName = ComponentName(packageName, serviceClassName)
             this.shopperLocale = LocaleUtil.getLocale(context)
 
@@ -188,7 +196,7 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
         constructor(adyenComponentConfiguration: AdyenComponentConfiguration) {
             this.packageName = adyenComponentConfiguration.serviceComponentName.packageName
             this.serviceClassName = adyenComponentConfiguration.serviceComponentName.className
-
+            this.resultHandlerIntent = adyenComponentConfiguration.resultHandlerIntent
             this.serviceComponentName = adyenComponentConfiguration.serviceComponentName
             this.shopperLocale = adyenComponentConfiguration.shopperLocale
             this.environment = adyenComponentConfiguration.environment
@@ -200,6 +208,11 @@ class AdyenComponentConfiguration : Configuration, Parcelable {
 
         fun setServiceComponentName(serviceComponentName: ComponentName): Builder {
             this.serviceComponentName = serviceComponentName
+            return this
+        }
+
+        fun setResultHandlerIntent(resultHandlerIntent: Intent): Builder {
+            this.resultHandlerIntent = resultHandlerIntent
             return this
         }
 

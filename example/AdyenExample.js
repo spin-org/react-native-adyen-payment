@@ -14,7 +14,7 @@ const MOCK_PAYMENT_DETAILS = {
     value: 100,
     currency: 'EUR',
   },
-  reference: 'api/v1/adyen/trip_payments',
+  reference: 'api/v1/adyen/add_cards',
   shopperReference: '123456',
   shopperEmail: 'test@test.test',
   shopperLocale: 'en_US',
@@ -88,7 +88,7 @@ function AdyenExample() {
     setStatus(STATUS.initiated);
 
     try {
-      AdyenPayment.startPayment(
+      AdyenPayment.startPaymentPromise(
         type,
         MOCK_COMPONENT_DATA,
         MOCK_PAYMENT_DETAILS,

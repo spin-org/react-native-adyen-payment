@@ -1,16 +1,9 @@
 package com.rnlib.adyen.ui
 
-import com.adyen.checkout.dropin.ui.LoadingDialogFragment
-
-import android.app.Activity
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
+import android.content.*
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.IBinder
-import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
@@ -28,8 +21,8 @@ import com.adyen.checkout.components.util.PaymentMethodTypes
 import com.adyen.checkout.core.log.LogUtil
 import com.adyen.checkout.core.log.Logger
 import com.adyen.checkout.core.util.LocaleUtil
-import com.adyen.checkout.dropin.DropIn
 import com.adyen.checkout.dropin.R
+import com.adyen.checkout.dropin.ui.LoadingDialogFragment
 import com.adyen.checkout.dropin.ui.action.ActionComponentDialogFragment
 import com.adyen.checkout.dropin.ui.stored.PreselectedStoredPaymentMethodFragment
 import com.adyen.checkout.googlepay.GooglePayComponent
@@ -62,6 +55,8 @@ private const val PAYMENT_METHODS_RESPONSE_KEY = "PAYMENT_METHODS_RESPONSE_KEY"
 private const val DROP_IN_CONFIGURATION_KEY = "DROP_IN_CONFIGURATION_KEY"
 private const val DROP_IN_RESULT_INTENT = "DROP_IN_RESULT_INTENT"
 private const val IS_WAITING_FOR_RESULT = "IS_WAITING_FOR_RESULT"
+
+private const val ADYEN_COMPONENT_INTENT = "ADYEN_COMPONENT_INTENT"
 
 private const val GOOGLE_PAY_REQUEST_CODE = 1
 
@@ -174,7 +169,6 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
 
         actionHandler = ActionHandler(this, adyenComponentViewModel.adyenComponentConfiguration)
         actionHandler.restoreState(this, savedInstanceState)
-
         handleIntent(intent)
 
         sendAnalyticsEvent()
@@ -405,7 +399,11 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
 
     override fun terminateDropIn() {
         Logger.d(TAG, "terminateDropIn")
-        terminateWithError(DropIn.ERROR_REASON_USER_CANCELED)
+        adyenComponentViewModel.adyenComponentConfiguration.resultHandlerIntent
+            .putExtra(AdyenComponent.ERROR_REASON_USER_CANCELED, "Cancelled").let { intent ->
+            startActivity(intent)
+        }
+        overridePendingTransition(0, R.anim.fade_out)
     }
 
     override fun startGooglePay(paymentMethod: PaymentMethod, googlePayConfiguration: GooglePayConfiguration) {
@@ -442,17 +440,10 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
     }
 
     private fun sendResult(content: String) {
-        val resultHandlerIntent = adyenComponentViewModel.resultHandlerIntent
-        // Merchant requested the result to be sent back with a result intent
-        if (resultHandlerIntent != null) {
-            resultHandlerIntent.putExtra(DropIn.RESULT_KEY, content)
-            startActivity(resultHandlerIntent)
-        }
-        // Merchant did not specify a result intent and should handle the result in onActivityResult
-        else {
-            val resultIntent = Intent().putExtra(DropIn.RESULT_KEY, content)
-            setResult(Activity.RESULT_OK, resultIntent)
-        }
+        adyenComponentViewModel.adyenComponentConfiguration.resultHandlerIntent
+            .putExtra(AdyenComponent.RESULT_KEY, content).let { intent ->
+                startActivity(intent)
+            }
         terminateSuccessfully()
     }
 
@@ -463,8 +454,10 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
 
     private fun terminateWithError(reason: String) {
         Logger.d(TAG, "terminateWithError")
-        val resultIntent = Intent().putExtra(DropIn.ERROR_REASON_KEY, reason)
-        setResult(Activity.RESULT_CANCELED, resultIntent)
+        adyenComponentViewModel.adyenComponentConfiguration.resultHandlerIntent
+            .putExtra(AdyenComponent.ERROR_REASON_KEY, reason).let { intent ->
+                startActivity(intent)
+            }
         terminate()
     }
 
@@ -540,6 +533,7 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
             intent.putExtra(PAYMENT_METHODS_RESPONSE_KEY, paymentMethodsApiResponse)
             intent.putExtra(DROP_IN_CONFIGURATION_KEY, adyenComponentConfiguration)
             intent.putExtra(DROP_IN_RESULT_INTENT, resultHandlerIntent)
+            intent.putExtra(ADYEN_COMPONENT_INTENT, adyenComponentConfiguration.resultHandlerIntent)
             return intent
         }
     }
