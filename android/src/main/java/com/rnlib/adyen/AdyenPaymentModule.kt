@@ -229,6 +229,7 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
         resultIntent.flags = (Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val adyenConfigurationBuilder = AdyenComponentConfiguration.Builder(
             context,
+            resultIntent,
             AdyenComponentService::class.java,
             configData.clientKey
         )
@@ -413,6 +414,7 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
         
         val adyenComponentConfigurationBuilder = AdyenComponentConfiguration.Builder(
             super.getCurrentActivity() as Context,
+            resultIntent,
             AdyenDropInService::class.java,
             configData.clientKey
         ).addCardConfiguration(cardConfiguration)
