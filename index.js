@@ -73,7 +73,7 @@ export default {
         if (Platform.OS === 'ios') {
             return AdyenPayment.canMakeApplePayPayments()
         } else if (Platform.OS === 'android') {
-            // TODO: implement android native method
+            return AdyenPayment.canMakeGooglePayments()
         } else {
             throw new Error(`${component} is not supported for ${Platform.OS} Platform`); 
         }

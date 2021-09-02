@@ -50,6 +50,12 @@ import androidx.fragment.app.FragmentManager
 import com.adyen.checkout.components.base.AddressVisibility
 import com.rnlib.adyen.service.AdyenDropInService
 import org.json.JSONArray
+import com.google.android.gms.common.ConnectionResult
+
+import com.google.android.gms.common.GoogleApiAvailability
+
+
+
 
 class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : ReactContextBaseJavaModule(reactContext),ActivityEventListener {
 
@@ -564,4 +570,10 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
         }
     }
 
+    @ReactMethod
+    fun canMakeGooglePayments(promise: Promise) {
+        val googleApiAvailability = GoogleApiAvailability.getInstance()
+        val status = googleApiAvailability.isGooglePlayServicesAvailable(reactApplicationContext)
+        promise.resolve(status == ConnectionResult.SUCCESS)
+    }
 }
