@@ -19,6 +19,20 @@ internal struct PaymentsData {
     static var merchantAccount : String = ""
     static var additionalData : [String : Any] = ["allow3DS2": true,"executeThreeD":true]
     static var regionId : Int = 1
+    /// Initial cost to unlock
+    static var baseRate: Int?
+    /// Cost per some unit of time
+    static var effectiveRate: Int?
+    /// Localized string to present before line items (e.g. Cost per ride varies)
+    static var localizedNativePayTitle = NSLocalizedString("Cost per ride varies", comment: "")
+    /// Localized base rate title (e.g. Unlock fee)
+    static var localizedBaseRateTitle = NSLocalizedString("Unlock fee", comment: "")
+    /// Localized effective rate title (e.g. Per minute)
+    static var localizedEffectiveRateTitle = NSLocalizedString("Per minute", comment: "")
+    /// Localized amount title (e.g. Temporary charge)
+    static var localizedAmountTitle = NSLocalizedString("Total", comment: "")
+    /// Indicate whether the amount is pending or final. A pending amount will display as "AMOUNT PENDING".
+    static var isAmountPending = false
 }
 
 internal struct PaymentsRequest: Request {

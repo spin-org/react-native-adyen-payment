@@ -52,6 +52,29 @@ class AdyenPayment: RCTEventEmitter {
         PaymentsData.countryCode = paymentDetails["countryCode"] as! String
         PaymentsData.returnUrl = paymentDetails["returnUrl"] as! String
         PaymentsData.regionId = paymentDetails["regionId"] as! Int
+        PaymentsData.baseRate = paymentDetails["baseRate"] as? Int
+        PaymentsData.effectiveRate = paymentDetails["effectiveRate"] as? Int
+        
+        if let value = paymentDetails["localizedNativePayTitle"] as? String, !value.isEmpty {
+            PaymentsData.localizedNativePayTitle = value
+        }
+        
+        if let value = paymentDetails["localizedBaseRateTitle"] as? String, !value.isEmpty {
+            PaymentsData.localizedNativePayTitle = value
+        }
+        
+        if let value = paymentDetails["localizedEffectiveRateTitle"] as? String, !value.isEmpty {
+            PaymentsData.localizedNativePayTitle = value
+        }
+        
+        if let value = paymentDetails["localizedAmountTitle"] as? String, !value.isEmpty {
+            PaymentsData.localizedNativePayTitle = value
+        }
+        
+        if let value = paymentDetails["isAmountPending"] as? Bool {
+            PaymentsData.isAmountPending = value
+        }
+        
 //        PaymentsData.shopperReference = paymentDetails["shopperReference"] as! String
 //        PaymentsData.shopperEmail = paymentDetails["shopperEmail"] as! String
 //        PaymentsData.shopperLocale = paymentDetails["shopperLocale"] as! String
@@ -162,23 +185,41 @@ class AdyenPayment: RCTEventEmitter {
     func showApplePayComponent(_ componentData : NSDictionary) throws {
         DispatchQueue.main.async {
             guard let paymentMethod = self.paymentMethods?.paymentMethod(ofType: ApplePayPaymentMethod.self) else { return }
-			// TODO: test if this is correct. It appears that updates to Adyen in 4.0.0 require an `APIContext` which requires a client key.
-			let clientKey = AppServiceConfigData.clientKey
-			guard !clientKey.isEmpty else { return }
-            let appleComponent : [String:Any] = componentData["applepay"] as? [String:Any] ?? [:]
-            guard appleComponent["apple_pay_merchant_id"] != nil else {return}
-            do{
-                let amt = NSDecimalNumber(string: String(format: "%.2f", Float(PaymentsData.amount.value) / 100))
-                let applePaySummaryItems = [PKPaymentSummaryItem(label: "Total", amount: amt, type: .final)]
-				let component = try ApplePayComponent(paymentMethod: paymentMethod, apiContext: APIContext(environment: AppServiceConfigData.environmentObject, clientKey: clientKey), payment: Payment(amount: PaymentsData.amount, countryCode: PaymentsData.countryCode), configuration: .init(summaryItems: applePaySummaryItems, merchantIdentifier: appleComponent["apple_pay_merchant_id"] as! String))
+            let clientKey = AppServiceConfigData.clientKey
+            guard !clientKey.isEmpty else { return }
+            let appleComponent : [String: Any] = componentData["applepay"] as? [String: Any] ?? [:]
+            guard appleComponent["apple_pay_merchant_id"] != nil else { return }
+            
+            do {
+                var applePaySummaryItems = [PKPaymentSummaryItem]()
+                
+                if let baseRate = PaymentsData.baseRate {
+                    applePaySummaryItems.append(PKPaymentSummaryItem(label: "\(PaymentsData.localizedNativePayTitle)\n\(PaymentsData.localizedBaseRateTitle)", amount: NSDecimalNumber(string: String(format: "%.2f", Float(baseRate) / 100)), type: .final))
+                }
+                
+                if let effectiveRate = PaymentsData.effectiveRate {
+                    let label: String = {
+                        guard PaymentsData.baseRate != nil else {
+                            return "\(PaymentsData.localizedNativePayTitle)\n\(PaymentsData.localizedEffectiveRateTitle)"
+                        }
+                        
+                        return PaymentsData.localizedEffectiveRateTitle
+                    }()
+                    
+                    applePaySummaryItems.append(PKPaymentSummaryItem(label: label, amount: NSDecimalNumber(string: String(format: "%.2f", Float(effectiveRate) / 100)), type: .final))
+                }
+                
+                applePaySummaryItems.append(PKPaymentSummaryItem(label: PaymentsData.localizedAmountTitle, amount: NSDecimalNumber(string: String(format: "%.2f", Float(PaymentsData.amount.value) / 100)), type: PaymentsData.isAmountPending ? .pending : .final))
+                
+                let component = try ApplePayComponent(paymentMethod: paymentMethod, apiContext: APIContext(environment: AppServiceConfigData.environmentObject, clientKey: clientKey), payment: Payment(amount: PaymentsData.amount, countryCode: PaymentsData.countryCode), configuration: .init(summaryItems: applePaySummaryItems, merchantIdentifier: appleComponent["apple_pay_merchant_id"] as! String))
                 component.delegate = self
                 self.present(component)
-            }catch let appleError as ApplePayComponent.Error{
-                self.sendFailure(code :"ERROR_APPLE_PAY",message: appleError.errorDescription!)
-            }catch{
-                self.sendFailure(code :"ERROR_GENERAL",message: error.localizedDescription)
+            } catch let appleError as ApplePayComponent.Error {
+                self.sendFailure(code :"ERROR_APPLE_PAY", message: appleError.errorDescription!)
+            } catch {
+                self.sendFailure(code :"ERROR_GENERAL", message: error.localizedDescription)
             }
-      }
+        }
     }
     
     func showDropInComponent(configuration : DropInComponent.Configuration) {

@@ -29,6 +29,8 @@ const MOCK_PAYMENT_DETAILS = {
     allow3DS2: true,
     executeThreeD: true,
   },
+  baseRate: 500,
+  effectiveRate: 100,
 };
 
 const MOCK_COMPONENT_DATA = {
