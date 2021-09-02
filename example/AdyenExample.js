@@ -70,7 +70,7 @@ function AdyenExample() {
   const [status, setStatus] = useState(STATUS.none);
   const [canMakeNativePayPayments, setCanMakeNativePayPayments] = useState(false);
 
-  useEffect(() => {
+  useEffect(async () => {
     AdyenPayment.initialize(APP_SERVICE_CONFIG_DATA);
 
     AdyenPayment.onSuccess((payload) => {
@@ -81,7 +81,9 @@ function AdyenExample() {
       console.log('failure', payload);
       setStatus(STATUS.failure);
     });
-    setCanMakeNativePayPayments(AdyenPayment.canMakeNativePayPayments())
+    await AdyenPayment.canMakeNativePayPayments().then(data => {
+      setCanMakeNativePayPayments(data)
+    })
   }, [canMakeNativePayPayments, setCanMakeNativePayPayments]);
 
   function handleButtonPress(type) {
