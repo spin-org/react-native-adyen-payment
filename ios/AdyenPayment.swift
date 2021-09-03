@@ -60,15 +60,15 @@ class AdyenPayment: RCTEventEmitter {
         }
         
         if let value = paymentDetails["localizedBaseRateTitle"] as? String, !value.isEmpty {
-            PaymentsData.localizedNativePayTitle = value
+            PaymentsData.localizedBaseRateTitle = value
         }
         
         if let value = paymentDetails["localizedEffectiveRateTitle"] as? String, !value.isEmpty {
-            PaymentsData.localizedNativePayTitle = value
+            PaymentsData.localizedEffectiveRateTitle = value
         }
         
         if let value = paymentDetails["localizedAmountTitle"] as? String, !value.isEmpty {
-            PaymentsData.localizedNativePayTitle = value
+            PaymentsData.localizedAmountTitle = value
         }
         
         if let value = paymentDetails["isAmountPending"] as? Bool {
