@@ -11,10 +11,10 @@ import {
 
 const MOCK_PAYMENT_DETAILS = {
   amount: {
-    value: 100,
+    value: 1000,
     currency: 'EUR',
   },
-  reference: 'api/v1/adyen/add_cards',
+  reference: 'api/v1/adyen/trip_payments',
   shopperReference: '123456',
   shopperEmail: 'test@test.test',
   shopperLocale: 'en_US',
@@ -31,6 +31,11 @@ const MOCK_PAYMENT_DETAILS = {
   },
   baseRate: 500,
   effectiveRate: 100,
+  localizedNativePayTitle: "Experiences are unique",
+  localizedBaseRateTitle: "Base Rate",
+  localizedEffectiveRateTitle: "Per jiffy",
+  localizedAmountTitle: "Universe",
+  isAmountPending: false
 };
 
 const MOCK_COMPONENT_DATA = {
