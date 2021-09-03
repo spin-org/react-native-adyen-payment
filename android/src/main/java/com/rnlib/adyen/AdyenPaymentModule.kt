@@ -178,10 +178,13 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
                     val pmApiResponse : PaymentMethodsApiResponse = PaymentMethodsApiResponse.SERIALIZER.deserialize(JSONObject(response.body()?.string()))
                     val paymentMethodsList : MutableList<PaymentMethod> = mutableListOf<PaymentMethod>()
                     if(component != "dropin"){
-                        for (each in pmApiResponse.paymentMethods!!) {
-                            Log.i(TAG,each.toString())
-                            if (each.type == component) {
-                                paymentMethodsList.add(each)
+                        val responsePaymentMethods = pmApiResponse.paymentMethods ?: emptyList()
+                        for (userPaymentMethod in responsePaymentMethods) {
+                            Log.i(TAG,userPaymentMethod.toString())
+                            val paymentMethodType = userPaymentMethod.type ?: ""
+                            if (paymentMethodType == component ||
+                                isGooglePlayComponentValid(paymentMethodType, component)) {
+                                paymentMethodsList.add(userPaymentMethod)
                                 break
                             }
                         }
@@ -228,6 +231,16 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
                 Log.d("Error", t.message!!)
             }
         })
+    }
+
+    /***
+     * Some user payment methods are using PaymentMethodTypes.GOOGLE_PAY_LEGACY as component type
+     * but from Adyen 4.0.0 we are using PaymentMethodTypes.GOOGLE_PAY, for the old users the
+     * component won't match, so we are comparing the user payment method with both types.
+     */
+    private fun isGooglePlayComponentValid(userPaymentMethod: String, component: String): Boolean {
+        return (userPaymentMethod == PaymentMethodTypes.GOOGLE_PAY_LEGACY && component == PaymentMethodTypes.GOOGLE_PAY) ||
+                (userPaymentMethod == PaymentMethodTypes.GOOGLE_PAY && component == PaymentMethodTypes.GOOGLE_PAY_LEGACY)
     }
 
     private fun createConfigurationBuilder(context : Context) : AdyenComponentConfiguration.Builder {
