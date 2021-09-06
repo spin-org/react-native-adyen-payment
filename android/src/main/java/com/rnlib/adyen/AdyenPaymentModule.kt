@@ -389,7 +389,8 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
         val googlePayConfig = googlePayConfigBuilder.build()
         val configBuilder : AdyenComponentConfiguration.Builder = createConfigurationBuilder(context)
         configBuilder.addGooglePayConfiguration(googlePayConfig)
-        AdyenComponent.startPayment(currentActivity!!, paymentMethodsApiResponse, configBuilder.build())
+        AdyenComponent.startPayment(currentActivity!!, paymentMethodsApiResponse, configBuilder.build(),
+            null, AdyenComponent.GOOGLE_PAY_REQUEST_CODE)
     }
  
     private fun showDropInComponent(componentData : JSONObject) {
@@ -564,9 +565,13 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
     @Suppress("UNUSED_PARAMETER")
     private fun parseActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         Log.d(TAG, "parseActivityResult")
-        if (requestCode == DropIn.DROP_IN_REQUEST_CODE && resultCode == Activity.RESULT_CANCELED && data != null) {
-//            sendFailure("ERROR_CANCELLED","Transaction Cancelled")
-            Log.d(TAG, "DropIn CANCELED")
+        if (resultCode == Activity.RESULT_CANCELED) {
+            if (requestCode == AdyenComponent.DROP_IN_REQUEST_CODE && data != null) {
+                sendFailure("ERROR_CANCELLED", "Transaction Cancelled")
+                Log.d(TAG, "DropIn CANCELED")
+            } else if (requestCode == AdyenComponent.GOOGLE_PAY_REQUEST_CODE) {
+                sendFailure("GOOGLE_PAY_CANCELLED", "Google transaction canceled")
+            }
         }
     }
 
