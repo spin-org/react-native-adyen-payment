@@ -34,6 +34,7 @@ object AdyenComponent {
     private val TAG = LogUtil.getTag()
 
     const val DROP_IN_REQUEST_CODE = 529
+    const val GOOGLE_PAY_REQUEST_CODE = 530
 
     const val RESULT_KEY = "payment_result"
     const val ERROR_REASON_KEY = "error_reason"
@@ -88,7 +89,8 @@ object AdyenComponent {
         activity: Activity,
         paymentMethodsApiResponse: PaymentMethodsApiResponse,
         adyenComponentConfiguration: AdyenComponentConfiguration,
-        resultHandlerIntent: Intent? = null
+        resultHandlerIntent: Intent? = null,
+        requestCode: Int = DROP_IN_REQUEST_CODE
     ) {
         Logger.d(TAG, "startPayment from Activity")
 
@@ -98,7 +100,7 @@ object AdyenComponent {
             adyenComponentConfiguration,
             resultHandlerIntent
         )
-        activity.startActivityForResult(intent, DROP_IN_REQUEST_CODE)
+        activity.startActivityForResult(intent, requestCode)
     }
 
     /**
