@@ -69,11 +69,11 @@ class AdyenPayment: RCTEventEmitter {
         
         if let value = paymentDetails["localizedAmountTitle"] as? String, !value.isEmpty {
             PaymentsData.localizedAmountTitle = value
+        } else {
+            PaymentsData.localizedAmountTitle = NSLocalizedString("Total", comment: "")
         }
         
-        if let value = paymentDetails["isAmountPending"] as? Bool {
-            PaymentsData.isAmountPending = value
-        }
+        PaymentsData.isAmountPending = (paymentDetails["isAmountPending"] as? Bool) ?? false
         
 //        PaymentsData.shopperReference = paymentDetails["shopperReference"] as! String
 //        PaymentsData.shopperEmail = paymentDetails["shopperEmail"] as! String
