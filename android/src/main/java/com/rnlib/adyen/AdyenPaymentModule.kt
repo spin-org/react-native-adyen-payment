@@ -10,11 +10,11 @@ import com.adyen.checkout.card.CardConfiguration
 import com.adyen.checkout.googlepay.GooglePayConfiguration
 import com.adyen.checkout.core.exception.CheckoutException
 import com.adyen.checkout.core.log.Logger
-import com.adyen.checkout.dropin.DropIn
 import com.adyen.checkout.core.api.Environment
 import com.adyen.checkout.components.model.payments.Amount
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.NonNull
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -53,8 +53,13 @@ import org.json.JSONArray
 import com.google.android.gms.common.ConnectionResult
 
 import com.google.android.gms.common.GoogleApiAvailability
-
-
+import com.google.android.gms.wallet.IsReadyToPayRequest
+import com.google.android.gms.wallet.PaymentsClient
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.tasks.Task
+import com.google.android.gms.wallet.Wallet
+import com.google.android.gms.wallet.Wallet.WalletOptions
+import org.jetbrains.annotations.NotNull
 
 
 class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : ReactContextBaseJavaModule(reactContext),ActivityEventListener {
@@ -590,8 +595,57 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
 
     @ReactMethod
     fun canMakeGooglePayments(promise: Promise) {
+        val activity = currentActivity
+        if (activity == null) {
+            promise.reject("activityUnavailable", "activityUnavailable")
+            return;
+        }
+
+        if (!isPlayServicesAvailable()) {
+            promise.reject("playServicesUnavailable", "playServicesUnavailable")
+            return;
+        }
+
+        isReadyToPay(activity, promise)
+    }
+
+    private fun isPlayServicesAvailable(): Boolean {
         val googleApiAvailability = GoogleApiAvailability.getInstance()
         val status = googleApiAvailability.isGooglePlayServicesAvailable(reactApplicationContext)
-        promise.resolve(status == ConnectionResult.SUCCESS)
+        return status == ConnectionResult.SUCCESS
+    }
+
+    private fun isReadyToPay(
+        @NotNull activity: Activity,
+        @NonNull promise: Promise
+    ) {
+        /*val isReadyToPayRequestJson = JSONObject()
+        isReadyToPayRequestJson.put("allowedPaymentMethods", WalletConstants.PAYMENT_METHOD_CARD)
+        isReadyToPayRequestJson.put("existingPaymentMethodRequired", true)*/
+
+        val request = IsReadyToPayRequest.newBuilder()
+            .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
+            .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
+            .setExistingPaymentMethodRequired(true)
+            .build()
+        val mPaymentsClient = createPaymentsClient(activity)
+        val task: Task<Boolean> = mPaymentsClient.isReadyToPay(request)
+        task.addOnCompleteListener { completeTask ->
+            try {
+                val result = completeTask.getResult(ApiException::class.java)
+                promise.resolve(result)
+            } catch (exception: ApiException) {
+                promise.reject(exception.message, exception.message)
+            }
+        }
+    }
+
+    private fun createPaymentsClient(activity: Activity): PaymentsClient {
+        val environment = if (configData.environment == "test") WalletConstants.ENVIRONMENT_TEST else
+                WalletConstants.ENVIRONMENT_PRODUCTION
+        return Wallet.getPaymentsClient(
+            activity,
+            WalletOptions.Builder().setEnvironment(environment).build()
+        )
     }
 }
