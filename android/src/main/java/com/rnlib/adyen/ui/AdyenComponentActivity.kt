@@ -42,6 +42,7 @@ import com.rnlib.adyen.ui.component.GenericComponentDialogFragment
 import com.rnlib.adyen.ui.paymentmethods.PaymentMethodListDialogFragment
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.json.JSONObject
+import java.util.Locale
 
 private val TAG = LogUtil.getTag()
 
@@ -188,16 +189,14 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
             return baseContext
         }
 
-        // We needs to get the Locale from sharedPrefs because attachBaseContext is called before onCreate, so we don't have the Config object yet.
-        val localeString = baseContext.getSharedPreferences(AdyenComponent.DROP_IN_PREFS, Context.MODE_PRIVATE).getString(AdyenComponent.LOCALE_PREF, "")
         val config = Configuration(baseContext.resources.configuration)
+        val locale = Locale.getDefault()
 
         return try {
-            val locale = LocaleUtil.fromLanguageTag(localeString)
             config.setLocale(locale)
             baseContext.createConfigurationContext(config)
         } catch (e: IllegalArgumentException) {
-            Logger.e(TAG, "Failed to parse locale $localeString")
+            Logger.e(TAG, "Failed to parse locale $locale")
             baseContext
         }
     }
