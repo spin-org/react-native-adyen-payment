@@ -69,7 +69,7 @@ class AdyenComponentService : AdyenDropInService() {
         var call = ApiService.checkoutApi(configData.baseUrl).addCards(configData.appUrlHeaders,requestBody)
         when (paymentRequest.getString("reference")) {
             "api/v1/adyen/trip_payments" -> call = ApiService.checkoutApi(configData.baseUrl).tripPayments(configData.appUrlHeaders,requestBody)
-            "api/v1/adyen/user_credit_payments" -> call = ApiService.checkoutApi(configData.baseUrl).userCredit(configData.appUrlHeaders,requestBody)
+            "api/v1/payments/top_up" -> call = ApiService.checkoutApi(configData.baseUrl).userCredit(configData.appUrlHeaders,requestBody)
         }
         return handleResponse(call)
     }

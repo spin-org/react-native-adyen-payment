@@ -22,7 +22,7 @@ interface CheckoutApiService {
     @POST("api/v1/adyen/trip_payments")
     fun tripPayments(@HeaderMap headerMap: Map<String, String>,@Body paymentsRequest: RequestBody): Call<ResponseBody>
 
-    @POST("api/v1/adyen/user_credit_payments")
+    @POST("api/v1/payments/top_up")
     fun userCredit(@HeaderMap headerMap: Map<String, String>,@Body paymentsRequest: RequestBody): Call<ResponseBody>
 
     @POST("api/v1/adyen/payment_details")
