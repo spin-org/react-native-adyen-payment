@@ -572,10 +572,17 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun parseActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    private fun parseActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
         Log.d(TAG, "parseActivityResult")
+        if ((requestCode == AdyenComponent.GOOGLE_PAY_REQUEST_CODE ||
+                    requestCode == AdyenComponent.DROP_IN_REQUEST_CODE) &&
+            resultCode == Activity.RESULT_OK && intent != null) {
+            val response = JSONObject(intent.getStringExtra(AdyenComponent.RESULT_KEY))
+            sendResponse(response)
+        }
+
         if (resultCode == Activity.RESULT_CANCELED) {
-            if (requestCode == AdyenComponent.DROP_IN_REQUEST_CODE && data != null) {
+            if (requestCode == AdyenComponent.DROP_IN_REQUEST_CODE && intent != null) {
                 sendFailure("ERROR_CANCELLED", "Transaction Cancelled")
                 Log.d(TAG, "DropIn CANCELED")
             } else if (requestCode == AdyenComponent.GOOGLE_PAY_REQUEST_CODE) {
