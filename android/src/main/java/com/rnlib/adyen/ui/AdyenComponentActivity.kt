@@ -1,5 +1,6 @@
 package com.rnlib.adyen.ui
 
+import android.app.Activity
 import android.content.*
 import android.content.res.Configuration
 import android.os.Bundle
@@ -439,10 +440,9 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
     }
 
     private fun sendResult(content: String) {
-        adyenComponentViewModel.adyenComponentConfiguration.resultHandlerIntent
-            .putExtra(AdyenComponent.RESULT_KEY, content).let { intent ->
-                startActivity(intent)
-            }
+        val resultIntent = Intent()
+        resultIntent.putExtra(AdyenComponent.RESULT_KEY, content)
+        setResult(Activity.RESULT_OK, resultIntent)
         terminateSuccessfully()
     }
 
@@ -453,10 +453,9 @@ class AdyenComponentActivity : AppCompatActivity(), DropInBottomSheetDialogFragm
 
     private fun terminateWithError(reason: String) {
         Logger.d(TAG, "terminateWithError")
-        adyenComponentViewModel.adyenComponentConfiguration.resultHandlerIntent
-            .putExtra(AdyenComponent.ERROR_REASON_KEY, reason).let { intent ->
-                startActivity(intent)
-            }
+        val resultIntent = Intent()
+        resultIntent.putExtra(AdyenComponent.ERROR_REASON_KEY, reason)
+        setResult(Activity.RESULT_CANCELED, resultIntent)
         terminate()
     }
 
