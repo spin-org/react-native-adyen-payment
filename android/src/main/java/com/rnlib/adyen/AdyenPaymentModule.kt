@@ -599,8 +599,10 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
                 loadingDialog.show(curr_fragment_mgr, LOADING_FRAGMENT_TAG)
             }
         } else {
-            val df : DialogFragment = curr_fragment_mgr.findFragmentByTag(LOADING_FRAGMENT_TAG) as DialogFragment
-            df.dismiss()
+            // DialogFragment can be null if this is called after getting an async response but
+            // user closed the screen
+            val df: DialogFragment? = curr_fragment_mgr.findFragmentByTag(LOADING_FRAGMENT_TAG) as DialogFragment?
+            df?.dismiss()
         }
     }
 
