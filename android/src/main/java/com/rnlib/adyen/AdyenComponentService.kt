@@ -70,6 +70,7 @@ class AdyenComponentService : AdyenDropInService() {
         when (paymentRequest.getString("reference")) {
             "api/v1/adyen/trip_payments" -> call = ApiService.checkoutApi(configData.baseUrl).tripPayments(configData.appUrlHeaders,requestBody)
             "api/v1/payments/top_up" -> call = ApiService.checkoutApi(configData.baseUrl).userCredit(configData.appUrlHeaders,requestBody)
+            "api/v1/spin_passes" -> call = ApiService.checkoutApi(configData.baseUrl).spinPasses(configData.appUrlHeaders,requestBody)
         }
         return handleResponse(call)
     }

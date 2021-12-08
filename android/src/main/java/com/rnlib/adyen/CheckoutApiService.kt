@@ -27,4 +27,7 @@ interface CheckoutApiService {
 
     @POST("api/v1/adyen/payment_details")
     fun details(@HeaderMap headerMap: Map<String, String>,@Body detailsRequest: RequestBody): Call<ResponseBody>
+
+    @POST("api/v1/spin_passes")
+    fun spinPasses(@HeaderMap headerMap: Map<String, String>,@Body spinPassRequest: RequestBody): Call<ResponseBody>
 }
