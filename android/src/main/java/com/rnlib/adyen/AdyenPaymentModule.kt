@@ -230,7 +230,7 @@ class AdyenPaymentModule(private var reactContext : ReactApplicationContext) : R
             override fun onFailure(call: Call<ResponseBody> ?, t: Throwable ?) {
                 // something went completely south (like no internet connection)
                 setLoading(false)
-                sendFailure("ERROR_GENERAL",t!!.message.toString())
+                sendFailure("ERROR_GENERAL_4",t!!.message.toString())
 
                 // TODO: Define what to do if [t.message] is null
                 Log.d("Error", t.message!!)

@@ -125,14 +125,14 @@ class AdyenComponentService : AdyenDropInService() {
                     } else {
                         val errObj: JSONObject = JSONObject()
                         errObj.put("resultType", "ERROR")
-                        errObj.put("code", "ERROR_GENERAL")
+                        errObj.put("code", "ERROR_GENERAL_1")
                         errObj.put("message", String(byteArray))
                         AdyenDropInServiceResult.Finished(errObj.toString())
                     }
                 } else {
                     val errObj: JSONObject = JSONObject()
                     errObj.put("resultType", "ERROR")
-                    errObj.put("code", "ERROR_GENERAL")
+                    errObj.put("code", "ERROR_GENERAL_2")
                     errObj.put("message", String(byteArray))
                     AdyenDropInServiceResult.Finished(errObj.toString())
                 }
@@ -156,7 +156,7 @@ class AdyenComponentService : AdyenDropInService() {
                     //CallResult(CallResult.ResultType.ERROR, response.message().toString())
                     val errObj : JSONObject = JSONObject()
                     errObj.put("resultType","ERROR")
-                    errObj.put("code","ERROR_GENERAL")
+                    errObj.put("code","ERROR_GENERAL_3")
                     errObj.put("message",response.message().toString())
                     AdyenDropInServiceResult.Finished(errObj.toString())
                 }
