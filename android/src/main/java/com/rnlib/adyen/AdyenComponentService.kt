@@ -66,6 +66,9 @@ class AdyenComponentService : AdyenDropInService() {
         paymentRequest.put("amount", amount.getInt("value"))
 
         val requestBody = paymentRequest.toString().toRequestBody(CONTENT_TYPE)
+
+        Logger.d(TAG, "TEMP_LOG, BODY: " + paymentRequest.toString())
+
         var call = ApiService.checkoutApi(configData.baseUrl).addCards(configData.appUrlHeaders,requestBody)
         when (paymentRequest.getString("reference")) {
             "api/v1/adyen/trip_payments" -> call = ApiService.checkoutApi(configData.baseUrl).tripPayments(configData.appUrlHeaders,requestBody)
@@ -80,6 +83,9 @@ class AdyenComponentService : AdyenDropInService() {
 
         val configData : AppServiceConfigData = AdyenPaymentModule.getAppServiceConfigData();
         val requestBody = actionComponentData.toString().toRequestBody(CONTENT_TYPE)
+
+        Logger.d(TAG, "TEMP_LOG, COMPONENT: " + actionComponentData.toString())
+
         val call = ApiService.checkoutApi(configData.baseUrl).details(configData.appUrlHeaders,requestBody)
 
         return handleResponse(call)
@@ -130,6 +136,23 @@ class AdyenComponentService : AdyenDropInService() {
                         AdyenDropInServiceResult.Finished(errObj.toString())
                     }
                 } else {
+
+                    Logger.d(TAG, "TEMP_LOG, CODE: " + response.code())
+                    Logger.d(TAG, "TEMP_LOG, MESSAGE: " + response.message())
+
+                    val responseBytes = response.body()?.bytes()
+                    if (responseBytes != null) {
+                        Logger.d(TAG, "TEMP_LOG, RESPONSE: " + String(responseBytes))
+                    }
+                    val errorBytes = response.errorBody()?.bytes()
+                    if (errorBytes != null) {
+                        Logger.d(TAG, "TEMP_LOG, ERROR: " + String(errorBytes))
+                    }
+
+                    for (h in response.headers()) {
+                        Logger.d(TAG, "TEMP_LOG, HEADER: " + h.first + " / " + h.second)
+                    }
+
                     val errObj: JSONObject = JSONObject()
                     errObj.put("resultType", "ERROR")
                     errObj.put("code", "ERROR_GENERAL_2")
