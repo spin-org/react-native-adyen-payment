@@ -96,7 +96,9 @@ class AdyenPayment: RCTEventEmitter {
         if(appServiceConfigData["additional_http_headers"] != nil){
            AppServiceConfigData.app_url_headers = appServiceConfigData["additional_http_headers"] as! [String:String]
         }
-        AppServiceConfigData.environment = appServiceConfigData["environment"] as! String
+        // TEMP: hard coded for debugging backend integration
+        AppServiceConfigData.environment = "test"
+        // AppServiceConfigData.environment = appServiceConfigData["environment"] as! String
     }
     
     func storedPaymentMethod<T: StoredPaymentMethod>(ofType type: T.Type) -> T? {
